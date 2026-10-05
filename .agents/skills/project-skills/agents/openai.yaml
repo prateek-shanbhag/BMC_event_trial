@@ -1,0 +1,3 @@
+name: project-skills-agent
+description: "Umbrella agent for AI-workflow skills"
+implicit_invocation: true

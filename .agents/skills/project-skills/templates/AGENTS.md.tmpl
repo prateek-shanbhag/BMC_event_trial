@@ -1,0 +1,11 @@
+# Agent Instructions
+
+This project uses `project-skills` for workflow tracking.
+
+As an AI agent operating in this project, you must:
+1. Ensure `.ai-workflow` is initialized. If not, inform the user to run `python path/to/project-skills/scripts/workflow.py init`.
+2. Record user prompts manually via `record-prompt` if automatic hooks are unavailable.
+3. Log meaningful actions and completions using the `log` command.
+4. Keep the `HANDOFF.md` updated. It will automatically regenerate every 3 interactions, but you can trigger it manually with `handoff`.
+
+Remember to always respect the privacy constraints and do not bypass the redaction script.
