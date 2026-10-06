@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
 
@@ -12,7 +12,7 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [firebaseReady, setFirebaseReady] = useState(!!auth);
+  const [firebaseReady] = useState(!!auth);
   const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
