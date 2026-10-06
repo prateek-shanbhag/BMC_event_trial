@@ -24,3 +24,10 @@
 {"timestamp": "2026-10-06T19:28:37.189004+00:00", "event": "action", "summary": "Diagnosed and fixed Node process silent exit caused by EADDRINUSE (port 5000) and Express app.listen swallowing errors. Killed background task blocking port 5000 and updated backend/index.js error handling."}
 {"timestamp": "2026-10-06T19:34:30.065897+00:00", "event": "prompt", "text": "Diagnose why /api/auth/me rejects the user with Unauthorized. Fix the token validation bug."}
 {"timestamp": "2026-10-06T19:34:41.888429+00:00", "event": "action", "summary": "Diagnosed /api/auth/me token verification failure. Fixed firebaseAdmin.js to extract project_id from service account file instead of using dummy .env values."}
+{"timestamp": "2026-10-06T19:50:42.482309+00:00", "event": "prompt", "text": "Add routing and simple role-based dashboards"}
+{"timestamp": "2026-10-06T19:50:55.489979+00:00", "event": "action", "summary": "Created role-based routing (React Router v7) with ProtectedRoute. Implemented simple Admin and Participant dashboard placeholders. Unauthenticated users are redirected to /login."}
+{"timestamp": "2026-10-06T20:08:33.919629+00:00", "event": "prompt", "text": "Design and implement the Firestore data model for the BMC Investment Simulator"}
+{"timestamp": "2026-10-06T20:08:48.588269+00:00", "event": "action", "summary": "Created firestore.rules and backend/scripts/seedSimulation.js to implement Firestore data model for the simulation."}
+{"timestamp": "2026-10-06T20:12:06.071528+00:00", "event": "prompt", "text": "Verify and correct round numbering semantics before proceeding"}
+{"timestamp": "2026-10-06T20:12:17.539948+00:00", "event": "action", "summary": "Corrected round numbering semantics (Round 0 is INITIAL_ALLOCATION, Rounds 1-20 are SIMULATION). Distinguished Asset Classes 1-3 as COMPOUND and 4-7 as SINGLE in Firestore."}
+{"timestamp": "2026-10-06T20:18:25.720379+00:00", "event": "action", "summary": "Completed implementation of Team and Participant Management UI. Included TeamManagement in AdminDashboard and TeamView in ParticipantDashboard. Restarted both backend and frontend servers, and verified the production build."}

@@ -48,10 +48,13 @@ app.use(express.json());
 
 // Routes
 const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
+const participantRoutes = require('./routes/participant');
+const { authenticateRequest, requireAdmin, requireParticipant } = require('./middleware/auth');
+
 app.use('/api/auth', authRoutes);
-
-
-
+app.use('/api/admin', authenticateRequest, requireAdmin, adminRoutes);
+app.use('/api/participant', authenticateRequest, requireParticipant, participantRoutes);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Backend is healthy' });

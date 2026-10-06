@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // By default, deny all read and write access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users can read their own user document
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Write operations are blocked from the client.
+      // Modifying roles, teams, etc., must be done via the backend using Admin SDK.
+      allow write: if false;
+    }
+  }
+}
