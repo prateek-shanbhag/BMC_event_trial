@@ -1,6 +1,5 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,23 +10,18 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Check for missing critical Firebase configuration
-const requiredKeys = ['apiKey', 'projectId', 'appId'];
-const missingKeys = requiredKeys.filter(key => !firebaseConfig[key]);
+let app = null;
+let auth = null;
 
-if (missingKeys.length > 0) {
-  console.error('ERROR: Firebase configuration is missing required environment variables:', missingKeys.join(', '));
+if (firebaseConfig.apiKey && firebaseConfig.apiKey !== 'your_api_key_here') {
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+  } catch (error) {
+    console.error('Firebase initialization failed:', error.message);
+  }
+} else {
+  console.warn('Firebase API key is not configured. Authentication will be unavailable.');
 }
 
-// Initialize Firebase securely (avoid duplicate initialization during Vite hot reloads)
-let app;
-try {
-  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-} catch (error) {
-  console.error('ERROR: Failed to initialize Firebase App.', error.message);
-}
-
-// Export Auth and Firestore for future use
-export const auth = app ? getAuth(app) : null;
-export const db = app ? getFirestore(app) : null;
-export default app;
+export { app, auth };

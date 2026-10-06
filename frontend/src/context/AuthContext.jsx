@@ -1,53 +1,60 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
 
 const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  return useContext(AuthContext);
+}
 
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const login = (email, password) => {
-    return signInWithEmailAndPassword(auth, email, password);
-  };
-
-  const logout = () => {
-    return signOut(auth);
-  };
+  const [firebaseReady, setFirebaseReady] = useState(!!auth);
+  const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
     if (!auth) {
-      console.error("Auth is null. Firebase is likely misconfigured.");
+      // Firebase is not configured — skip auth listener, just show the app
       setLoading(false);
       return;
     }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setAuthError(null);
       if (user) {
-        // Fetch role from backend /api/auth/me
         try {
           const token = await user.getIdToken();
           const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
             headers: {
-              Authorization: `Bearer ${token}`
-            }
+              Authorization: `Bearer ${token}`,
+            },
           });
-          
           if (response.ok) {
             const data = await response.json();
             setRole(data.role);
-            setCurrentUser({ ...user, ...data });
+            setCurrentUser(user);
           } else {
-            setRole(null);
+            await signOut(auth);
             setCurrentUser(null);
+            setRole(null);
+            
+            if (response.status === 404) {
+              setAuthError("User not found in the database. Please contact an administrator.");
+            } else if (response.status === 401 || response.status === 403) {
+              setAuthError("Unauthorized to access the application.");
+            } else {
+              setAuthError(`Backend authentication failed with status: ${response.status}`);
+            }
           }
         } catch (error) {
-          console.error('Failed to fetch user role:', error);
-          setRole(null);
+          console.error("Backend auth verification failed", error);
+          await signOut(auth);
           setCurrentUser(null);
+          setRole(null);
+          setAuthError(`Network error connecting to backend: ${error.message}`);
         }
       } else {
         setCurrentUser(null);
@@ -57,14 +64,30 @@ export const AuthProvider = ({ children }) => {
     });
 
     return unsubscribe;
-  }, [auth]);
+  }, []);
+
+  const login = (email, password) => {
+    if (!auth) {
+      return Promise.reject(new Error('Firebase is not configured.'));
+    }
+    return signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const logout = () => {
+    if (!auth) {
+      return Promise.reject(new Error('Firebase is not configured.'));
+    }
+    return signOut(auth);
+  };
 
   const value = {
     currentUser,
     role,
     login,
     logout,
-    loading
+    loading,
+    firebaseReady,
+    authError
   };
 
   return (
@@ -72,4 +95,4 @@ export const AuthProvider = ({ children }) => {
       {!loading && children}
     </AuthContext.Provider>
   );
-};
+}
