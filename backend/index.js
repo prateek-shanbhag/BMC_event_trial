@@ -50,10 +50,14 @@ app.use(express.json());
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const participantRoutes = require('./routes/participant');
+const newsRoutes = require('./routes/news');
+const assetValuesRoutes = require('./routes/assetValues');
 const { authenticateRequest, requireAdmin, requireParticipant } = require('./middleware/auth');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', authenticateRequest, requireAdmin, adminRoutes);
+app.use('/api/admin/news', authenticateRequest, requireAdmin, newsRoutes);
+app.use('/api/admin/asset-values', authenticateRequest, requireAdmin, assetValuesRoutes);
 app.use('/api/participant', authenticateRequest, requireParticipant, participantRoutes);
 // Health check endpoint
 app.get('/api/health', (req, res) => {

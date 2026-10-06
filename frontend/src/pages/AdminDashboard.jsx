@@ -1,5 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 import TeamManagement from '../components/TeamManagement';
+import NewsManagement from '../components/NewsManagement';
+import AssetValueManagement from '../components/AssetValueManagement';
 
 function AdminDashboard() {
   const { currentUser, logout } = useAuth();
@@ -28,6 +30,7 @@ function AdminDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
         <TeamManagement />
+        <NewsManagement />
         
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>
@@ -38,14 +41,7 @@ function AdminDashboard() {
             <h3>Rounds</h3>
             <p style={{ color: '#666' }}>Placeholder: Manage 20 rounds of the competition.</p>
           </div>
-          <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>
-            <h3>News</h3>
-            <p style={{ color: '#666' }}>Placeholder: Create and broadcast news items.</p>
-          </div>
-          <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>
-            <h3>Assets</h3>
-            <p style={{ color: '#666' }}>Placeholder: Manage investable assets.</p>
-          </div>
+          <AssetValueManagement />
           <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>
             <h3>Leaderboard</h3>
             <p style={{ color: '#666' }}>Placeholder: Live ranking of teams.</p>

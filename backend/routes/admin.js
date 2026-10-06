@@ -213,4 +213,24 @@ router.get('/participants', async (req, res) => {
   }
 });
 
+// Fetch all asset classes
+router.get('/asset-classes', async (req, res) => {
+  try {
+    const assetClassesSnapshot = await db.collection('assetClasses').get();
+    
+    const assetClasses = [];
+    assetClassesSnapshot.forEach(doc => {
+      assetClasses.push({ id: doc.id, ...doc.data() });
+    });
+
+    // Sort by integer ID
+    assetClasses.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+
+    return res.json({ assetClasses });
+  } catch (error) {
+    console.error('Error fetching asset classes:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
