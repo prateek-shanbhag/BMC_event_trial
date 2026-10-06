@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 function Login() {
   const { currentUser, role, login, firebaseReady, authError } = useAuth();
-  const navigate = useNavigate();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
