@@ -1,5 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import TeamView from '../components/TeamView';
+import ParticipantAllocation from '../components/ParticipantAllocation';
 
 function ParticipantDashboard() {
   const { currentUser, logout } = useAuth();
@@ -28,6 +29,7 @@ function ParticipantDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
         <TeamView />
+        <ParticipantAllocation />
         
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>

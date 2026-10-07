@@ -52,13 +52,17 @@ const adminRoutes = require('./routes/admin');
 const participantRoutes = require('./routes/participant');
 const newsRoutes = require('./routes/news');
 const assetValuesRoutes = require('./routes/assetValues');
+const simulationRoutes = require('./routes/simulation');
+const allocationsRoutes = require('./routes/allocations');
 const { authenticateRequest, requireAdmin, requireParticipant } = require('./middleware/auth');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', authenticateRequest, requireAdmin, adminRoutes);
 app.use('/api/admin/news', authenticateRequest, requireAdmin, newsRoutes);
 app.use('/api/admin/asset-values', authenticateRequest, requireAdmin, assetValuesRoutes);
+app.use('/api/admin/simulation', authenticateRequest, requireAdmin, simulationRoutes);
 app.use('/api/participant', authenticateRequest, requireParticipant, participantRoutes);
+app.use('/api/participant/allocation', allocationsRoutes);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Backend is healthy' });

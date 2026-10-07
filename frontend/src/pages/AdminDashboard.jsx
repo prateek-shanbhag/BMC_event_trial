@@ -2,6 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import TeamManagement from '../components/TeamManagement';
 import NewsManagement from '../components/NewsManagement';
 import AssetValueManagement from '../components/AssetValueManagement';
+import SimulationControl from '../components/SimulationControl';
 
 function AdminDashboard() {
   const { currentUser, logout } = useAuth();
@@ -33,14 +34,7 @@ function AdminDashboard() {
         <NewsManagement />
         
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-          <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>
-            <h3>Simulation Control</h3>
-            <p style={{ color: '#666' }}>Placeholder: Start, stop, or pause the simulation.</p>
-          </div>
-          <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>
-            <h3>Rounds</h3>
-            <p style={{ color: '#666' }}>Placeholder: Manage 20 rounds of the competition.</p>
-          </div>
+          <SimulationControl />
           <AssetValueManagement />
           <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>
             <h3>Leaderboard</h3>
