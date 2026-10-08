@@ -3,6 +3,7 @@ import TeamManagement from '../components/TeamManagement';
 import NewsManagement from '../components/NewsManagement';
 import AssetValueManagement from '../components/AssetValueManagement';
 import SimulationControl from '../components/SimulationControl';
+import AdminPortfolioManagement from '../components/AdminPortfolioManagement';
 
 function AdminDashboard() {
   const { currentUser, logout } = useAuth();
@@ -31,6 +32,7 @@ function AdminDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
         <TeamManagement />
+        <AdminPortfolioManagement />
         <NewsManagement />
         
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>

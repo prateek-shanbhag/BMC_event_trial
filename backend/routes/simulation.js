@@ -118,13 +118,67 @@ router.post('/advance-round', async (req, res) => {
   try {
     const configRef = db.collection(SIMULATION_COLLECTION).doc(CONFIG_DOC_ID);
     
+    // We need valuationService to calculate the snapshot payload
+    const { calculatePortfolioValuation } = require('../services/valuationService');
+    
     await db.runTransaction(async (t) => {
       const config = await ensureConfigExists(t);
       
+      // Step 1: Verify status and bounds (Rounds 1 to 19 can be advanced)
       if (config.status !== 'RUNNING' || config.currentRound < 1 || config.currentRound >= config.totalRounds) {
         throw new Error('INVALID_STATE');
       }
       
+      const concludingRound = config.currentRound;
+
+      // Ensure all 7 asset values exist for the concluding round
+      const assetDocs = await t.get(db.collection('assetValues').where('round', '==', concludingRound));
+      const assetValues = {};
+      assetDocs.forEach(doc => {
+        const data = doc.data();
+        assetValues[data.assetClassId] = data.value;
+      });
+
+      const missingClasses = [];
+      for (let i = 1; i <= 7; i++) {
+        if (assetValues[i] === undefined || assetValues[i] === null) {
+          missingClasses.push(i);
+        }
+      }
+
+      if (missingClasses.length > 0) {
+        throw new Error(`MISSING_ASSET_VALUES:${missingClasses.join(',')}`);
+      }
+
+      // Read all active portfolios
+      const portfoliosDocs = await t.get(db.collection('portfolios').where('status', '==', 'ACTIVE'));
+
+      // Process and stage snapshot creation for every active portfolio
+      portfoliosDocs.forEach(doc => {
+        const portfolio = doc.data();
+        const teamId = portfolio.teamId || doc.id.replace('team_', '');
+        
+        // Calculate valuation using the temporary model
+        const valuation = calculatePortfolioValuation(teamId, concludingRound, portfolio, assetValues);
+        
+        // Define unique snapshot document ID for idempotency
+        const snapshotRef = db.collection('portfolioSnapshots').doc(`${teamId}_round_${concludingRound}`);
+        
+        // Write the snapshot in the transaction
+        t.set(snapshotRef, {
+          teamId: teamId,
+          round: concludingRound,
+          holdings: portfolio.holdings,
+          cash: portfolio.cash,
+          investedValue: valuation.totalInvestedValue,
+          totalPortfolioValue: valuation.totalPortfolioValue,
+          profitLoss: valuation.profitLoss,
+          returnPercentage: valuation.percentageReturn,
+          createdAt: FieldValue.serverTimestamp()
+        });
+      });
+
+      // Update the global configuration only if all previous steps succeeded
       t.update(configRef, {
         currentRound: config.currentRound + 1,
         updatedAt: FieldValue.serverTimestamp()
@@ -136,6 +190,10 @@ router.post('/advance-round', async (req, res) => {
     if (error.message === 'INVALID_STATE') {
       return res.status(409).json({ error: 'Invalid state transition' });
     }
+    if (error.message.startsWith('MISSING_ASSET_VALUES:')) {
+      const missing = error.message.split(':')[1];
+      return res.status(409).json({ error: `Asset values are incomplete for round. Missing classes: ${missing}` });
+    }
     console.error('Error advancing round:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
@@ -145,6 +203,7 @@ router.post('/advance-round', async (req, res) => {
 router.post('/finish', async (req, res) => {
   try {
     const configRef = db.collection(SIMULATION_COLLECTION).doc(CONFIG_DOC_ID);
+    const { calculatePortfolioValuation } = require('../services/valuationService');
     
     await db.runTransaction(async (t) => {
       const config = await ensureConfigExists(t);
@@ -153,6 +212,58 @@ router.post('/finish', async (req, res) => {
         throw new Error('INVALID_STATE');
       }
       
+      const concludingRound = config.currentRound;
+
+      // Ensure all 7 asset values exist for the concluding round
+      const assetDocs = await t.get(db.collection('assetValues').where('round', '==', concludingRound));
+      const assetValues = {};
+      assetDocs.forEach(doc => {
+        const data = doc.data();
+        assetValues[data.assetClassId] = data.value;
+      });
+
+      const missingClasses = [];
+      for (let i = 1; i <= 7; i++) {
+        if (assetValues[i] === undefined || assetValues[i] === null) {
+          missingClasses.push(i);
+        }
+      }
+      
+      console.log('Finish simulation missingClasses:', missingClasses, 'assetValues:', assetValues);
+
+      if (missingClasses.length > 0) {
+        throw new Error(`MISSING_ASSET_VALUES:${missingClasses.join(',')}`);
+      }
+
+      // Read all active portfolios
+      const portfoliosDocs = await t.get(db.collection('portfolios').where('status', '==', 'ACTIVE'));
+
+      // Process and stage snapshot creation for every active portfolio
+      portfoliosDocs.forEach(doc => {
+        const portfolio = doc.data();
+        const teamId = portfolio.teamId || doc.id.replace('team_', '');
+        
+        // Calculate valuation using the temporary model
+        const valuation = calculatePortfolioValuation(teamId, concludingRound, portfolio, assetValues);
+        
+        // Define unique snapshot document ID for idempotency
+        const snapshotRef = db.collection('portfolioSnapshots').doc(`${teamId}_round_${concludingRound}`);
+        
+        // Write the snapshot in the transaction
+        t.set(snapshotRef, {
+          teamId: teamId,
+          round: concludingRound,
+          holdings: portfolio.holdings,
+          cash: portfolio.cash,
+          investedValue: valuation.totalInvestedValue,
+          totalPortfolioValue: valuation.totalPortfolioValue,
+          profitLoss: valuation.profitLoss,
+          returnPercentage: valuation.percentageReturn,
+          createdAt: FieldValue.serverTimestamp()
+        });
+      });
+
+      // Update the global configuration only if all previous steps succeeded
       t.update(configRef, {
         status: 'FINISHED',
         updatedAt: FieldValue.serverTimestamp()
@@ -162,7 +273,11 @@ router.post('/finish', async (req, res) => {
     return res.json({ message: 'Simulation finished successfully' });
   } catch (error) {
     if (error.message === 'INVALID_STATE') {
-      return res.status(409).json({ error: 'Invalid state transition' });
+      return res.status(409).json({ error: 'Simulation cannot be finished before Round 20.' });
+    }
+    if (error.message.startsWith('MISSING_ASSET_VALUES:')) {
+      const missing = error.message.split(':')[1];
+      return res.status(409).json({ error: `Asset values are incomplete for round. Missing classes: ${missing}` });
     }
     console.error('Error finishing simulation:', error);
     return res.status(500).json({ error: 'Internal server error' });

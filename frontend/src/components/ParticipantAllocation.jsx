@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-function ParticipantAllocation() {
+function ParticipantAllocation({ simulationState }) {
   const { currentUser } = useAuth();
   const [allocation, setAllocation] = useState(null);
   const [teamName, setTeamName] = useState('');
@@ -136,6 +136,11 @@ function ParticipantAllocation() {
         <p style={{ color: 'red' }}>You are not assigned to a team yet.</p>
       </div>
     );
+  }
+
+  // Only show this component during Round 0 ALLOCATION phase
+  if (simulationState && (simulationState.currentRound !== 0 || simulationState.status !== 'ALLOCATION')) {
+    return null;
   }
 
   const isSubmitted = allocation?.status === 'SUBMITTED';

@@ -45,4 +45,34 @@ router.get('/team', async (req, res) => {
   }
 });
 
+// Get current simulation state
+router.get('/simulation-state', async (req, res) => {
+  try {
+    const configRef = db.collection('simulation').doc('config');
+    const configDoc = await configRef.get();
+    
+    if (!configDoc.exists) {
+      return res.json({
+        startingCapital: 1000000,
+        totalRounds: 20,
+        allocationWindowSeconds: 120,
+        currentRound: 0,
+        status: "SETUP"
+      });
+    }
+
+    const config = configDoc.data();
+    return res.json({
+      startingCapital: config.startingCapital,
+      totalRounds: config.totalRounds,
+      allocationWindowSeconds: config.allocationWindowSeconds,
+      currentRound: config.currentRound,
+      status: config.status
+    });
+  } catch (error) {
+    console.error('Error fetching simulation state:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

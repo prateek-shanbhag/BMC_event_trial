@@ -54,6 +54,7 @@ const newsRoutes = require('./routes/news');
 const assetValuesRoutes = require('./routes/assetValues');
 const simulationRoutes = require('./routes/simulation');
 const allocationsRoutes = require('./routes/allocations');
+const { adminRouter: adminPortfoliosRouter, participantRouter: participantPortfolioRouter } = require('./routes/portfolios');
 const { authenticateRequest, requireAdmin, requireParticipant } = require('./middleware/auth');
 
 app.use('/api/auth', authRoutes);
@@ -61,11 +62,24 @@ app.use('/api/admin', authenticateRequest, requireAdmin, adminRoutes);
 app.use('/api/admin/news', authenticateRequest, requireAdmin, newsRoutes);
 app.use('/api/admin/asset-values', authenticateRequest, requireAdmin, assetValuesRoutes);
 app.use('/api/admin/simulation', authenticateRequest, requireAdmin, simulationRoutes);
+app.use('/api/admin/portfolios', authenticateRequest, requireAdmin, adminPortfoliosRouter);
 app.use('/api/participant', authenticateRequest, requireParticipant, participantRoutes);
 app.use('/api/participant/allocation', allocationsRoutes);
+app.use('/api/participant/portfolio', authenticateRequest, requireParticipant, participantPortfolioRouter);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Backend is healthy' });
+});
+
+// Fallback 404 handler to ensure JSON responses instead of Express HTML 404s
+app.use((req, res, next) => {
+  res.status(404).json({ error: `Not Found: ${req.originalUrl}` });
+});
+
+// Global error handler to ensure JSON responses instead of Express HTML 500s
+app.use((err, req, res, next) => {
+  console.error('Unhandled Server Error:', err);
+  res.status(500).json({ error: err.message || 'Internal Server Error' });
 });
 
 // Firebase connectivity check endpoint
