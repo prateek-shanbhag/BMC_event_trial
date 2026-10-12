@@ -1,19 +1,8 @@
 const fetch = require('node-fetch');
-const { db } = require('../config/firebaseAdmin');
+const { db, app } = require('../config/firebaseAdmin');
+const { getTestCredentials, loginTestUser, assertDestructiveOperationsAllowed } = require('./testSecurityGuard');
 
-const API_KEY = 'AIzaSyCoUgT8Ps-EYoS-XAR3-hW906kdNc9LX_M';
 const API_BASE = 'http://localhost:5000/api';
-
-async function login(email, password) {
-  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, returnSecureToken: true })
-  });
-  if (!res.ok) throw new Error(`Login failed for ${email}`);
-  const data = await res.json();
-  return data.idToken;
-}
 
 const results = {};
 function report(section, status, reason = null) {
@@ -22,12 +11,14 @@ function report(section, status, reason = null) {
 }
 
 async function runTests() {
+  const creds = getTestCredentials();
+
   let adminToken, userToken;
   try {
-    adminToken = await login('admin@gmail.com', 'password');
-    userToken = await login('hello@gmail.com', 'password');
+    adminToken = await loginTestUser(creds.apiKey, creds.adminEmail, creds.adminPassword);
+    userToken = await loginTestUser(creds.apiKey, creds.participantEmail, creds.participantPassword);
   } catch (e) {
-    console.error('Failed to login:', e);
+    console.error('Failed to login:', e.message);
     return;
   }
 
@@ -52,6 +43,9 @@ async function runTests() {
     
     // Clear collections
     const collections = ['allocations', 'portfolios', 'portfolioSnapshots', 'assetValues'];
+    const targetProjectId = app.options.projectId || db.projectId || process.env.FIREBASE_PROJECT_ID;
+    assertDestructiveOperationsAllowed(collections, targetProjectId);
+
     for (const c of collections) {
       const docs = await db.collection(c).get();
       const batch = db.batch();
@@ -121,7 +115,7 @@ async function runTests() {
     }
 
     // Get portfolios before finishing
-    const ptUserDoc = await db.collection('users').where('email', '==', 'hello@gmail.com').limit(1).get();
+    const ptUserDoc = await db.collection('users').where('email', '==', creds.participantEmail).limit(1).get();
     const teamId = ptUserDoc.docs[0].data().teamId;
     const portfolioBefore = await db.collection('portfolios').doc(`team_${teamId}`).get();
 

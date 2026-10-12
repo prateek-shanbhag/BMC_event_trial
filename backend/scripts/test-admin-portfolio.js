@@ -1,19 +1,8 @@
 const fetch = require('node-fetch');
 const { db } = require('../config/firebaseAdmin');
+const { getTestCredentials, loginTestUser } = require('./testSecurityGuard');
 
-const API_KEY = 'AIzaSyCoUgT8Ps-EYoS-XAR3-hW906kdNc9LX_M';
 const API_BASE = 'http://localhost:5000/api';
-
-async function login(email, password) {
-  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, returnSecureToken: true })
-  });
-  if (!res.ok) throw new Error(`Login failed for ${email}`);
-  const data = await res.json();
-  return data.idToken;
-}
 
 const results = {};
 function report(section, status, reason = null) {
@@ -22,12 +11,14 @@ function report(section, status, reason = null) {
 }
 
 async function runTests() {
+  const creds = getTestCredentials();
+
   let adminToken, userToken;
   try {
-    adminToken = await login('admin@gmail.com', 'password');
-    userToken = await login('hello@gmail.com', 'password');
+    adminToken = await loginTestUser(creds.apiKey, creds.adminEmail, creds.adminPassword);
+    userToken = await loginTestUser(creds.apiKey, creds.participantEmail, creds.participantPassword);
   } catch (e) {
-    console.error('Failed to login:', e);
+    console.error('Failed to login:', e.message);
     return;
   }
 
@@ -47,10 +38,12 @@ async function runTests() {
   };
 
   try {
-    // We assume the DB is already populated by previous tests. If not, this might fail on empty data, but basic API checks should pass.
-    
     // Find the participant's teamId
-    const ptUserDoc = await db.collection('users').where('email', '==', 'hello@gmail.com').limit(1).get();
+    const ptUserDoc = await db.collection('users').where('email', '==', creds.participantEmail).limit(1).get();
+    if (ptUserDoc.empty) {
+      console.error(`User doc for ${creds.participantEmail} not found`);
+      process.exit(1);
+    }
     const teamId = ptUserDoc.docs[0].data().teamId;
 
     // Test 1: Admin can retrieve all active team portfolios.
@@ -107,7 +100,6 @@ async function runTests() {
     }
 
     // Test 7: Missing Round N asset value returns the existing 409 behavior.
-    // Try round 19 (should have no asset values configured)
     let res7 = await req(`/admin/portfolios/${teamId}/valuation/19`, 'GET', null, adminToken);
     if (res7.status === 409) {
       report('Test 7: Missing Round N asset value returns the existing 409 behavior', 'PASS');
@@ -125,7 +117,7 @@ async function runTests() {
     }
 
   } catch (err) {
-    console.error('Error during tests:', err);
+    console.error('Error during tests:', err.message);
   }
 
   console.log('\n=== FINAL REPORT ===');

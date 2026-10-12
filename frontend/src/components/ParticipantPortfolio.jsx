@@ -92,8 +92,25 @@ function ParticipantPortfolio({ simulationState }) {
     }
   };
 
-  if (loading) return <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>Loading Portfolio...</div>;
-  if (error) return <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px', color: 'red' }}>Portfolio: {error}</div>;
+  if (loading) {
+    return (
+      <div className="bmc-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span className="badge-dot" style={{ background: 'var(--accent-electric)', animation: 'pulse-dot 1.2s infinite' }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Loading live portfolio metrics...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="alert alert-error">
+        <span><strong>Portfolio Error:</strong> {error}</span>
+      </div>
+    );
+  }
+
   if (!portfolio) return null;
 
   const getAssetName = (key) => {
@@ -109,142 +126,382 @@ function ParticipantPortfolio({ simulationState }) {
     }
   };
 
+  const totalCapitalBase = (portfolio.totalInvested || 0) + (portfolio.cash || 0);
+
   return (
-    <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>
-      <h3>Portfolio</h3>
-      
-      <div style={{ marginBottom: '20px' }}>
-        <p><strong>Team:</strong> {teamName || portfolio.teamId}</p>
-        <p><strong>Portfolio Status:</strong> {portfolio.status}</p>
-        <p><strong>Current Simulation Round:</strong> {simulationState ? simulationState.currentRound : portfolio.currentRound}</p>
-      </div>
-
-      <div style={{ marginBottom: '20px' }}>
-        <h4>Holdings</h4>
-        <ul style={{ listStyleType: 'none', padding: 0 }}>
-          {portfolio.holdings && Object.entries(portfolio.holdings).map(([key, value]) => (
-            <li key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-              <span>{getAssetName(key)}</span>
-              <span>₹{value?.toLocaleString('en-IN') || 0}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '4px' }}>
-        <p style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0' }}>
-          <strong>Total Invested:</strong>
-          <span>₹{portfolio.totalInvested?.toLocaleString('en-IN') || 0}</span>
-        </p>
-        <p style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0' }}>
-          <strong>Cash:</strong>
-          <span>₹{portfolio.cash?.toLocaleString('en-IN') || 0}</span>
-        </p>
-      </div>
-      
-      <p style={{ color: '#666', fontSize: '12px', marginTop: '20px' }}>
-        Note: This is your current portfolio state. Allocations can only be modified during specific rounds.
-      </p>
-
-      <div style={{ marginTop: '40px', padding: '20px', borderTop: '2px solid #ddd' }}>
-        <h3>Round History</h3>
-        {historyError && <div style={{ color: 'red' }}>{historyError}</div>}
-        {history.length === 0 && !historyError && <p>No completed rounds found.</p>}
-        {history.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #ccc' }}>
-                <th style={{ padding: '8px' }}>Round</th>
-                <th style={{ padding: '8px' }}>Invested Value (₹)</th>
-                <th style={{ padding: '8px' }}>Cash (₹)</th>
-                <th style={{ padding: '8px' }}>Total Value (₹)</th>
-                <th style={{ padding: '8px' }}>P/L (₹)</th>
-                <th style={{ padding: '8px' }}>Return %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map(snap => (
-                <tr key={snap.round} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '8px' }}>{snap.round}</td>
-                  <td style={{ padding: '8px' }}>
-                    {snap.round === 0 ? '—' : snap.investedValue?.toLocaleString('en-IN') || '0'}
-                  </td>
-                  <td style={{ padding: '8px' }}>{snap.cash?.toLocaleString('en-IN') || '0'}</td>
-                  <td style={{ padding: '8px' }}>
-                    {snap.round === 0 ? '—' : snap.totalPortfolioValue?.toLocaleString('en-IN') || '0'}
-                  </td>
-                  <td style={{ padding: '8px', color: snap.round === 0 ? 'inherit' : (snap.profitLoss >= 0 ? 'green' : 'red') }}>
-                    {snap.round === 0 ? '—' : snap.profitLoss?.toLocaleString('en-IN') || '0'}
-                  </td>
-                  <td style={{ padding: '8px', color: snap.round === 0 ? 'inherit' : (snap.returnPercentage >= 0 ? 'green' : 'red') }}>
-                    {snap.round === 0 ? '—' : `${snap.returnPercentage?.toFixed(2)}%`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div style={{ marginTop: '40px', padding: '20px', borderTop: '2px solid #ddd' }}>
-        <h3>Temporary Valuation Model</h3>
-        <p style={{ color: '#d9534f', fontWeight: 'bold', fontSize: '14px' }}>TEMPORARY DEVELOPMENT VALUATION MODEL — replace when official financial rules are finalized.</p>
-        
-        <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', alignItems: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Portfolio Overview & KPI Card */}
+      <div className="bmc-card">
+        <div className="bmc-card-header">
           <div>
-            <label>Select Round: </label>
-            <select value={selectedRound} onChange={(e) => setSelectedRound(parseInt(e.target.value))} style={{ padding: '4px' }}>
+            <h3 className="bmc-card-title">
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '26px',
+                height: '26px',
+                borderRadius: '6px',
+                background: 'rgba(56, 189, 248, 0.15)',
+                color: 'var(--accent-electric)',
+                fontSize: '0.85rem'
+              }}>
+                💼
+              </span>
+              Active Portfolio
+            </h3>
+            <p className="bmc-card-subtitle">
+              Holdings, cash reserve, and allocation distribution for {teamName || portfolio.teamId}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span className="badge badge-running">
+              <span className="badge-dot" />
+              {portfolio.status || 'ACTIVE'}
+            </span>
+            <span className="badge badge-setup">
+              Round {simulationState ? simulationState.currentRound : portfolio.currentRound}
+            </span>
+          </div>
+        </div>
+
+        {/* Financial KPI Summary Cards */}
+        <div className="bmc-stat-grid" style={{ marginBottom: '1.5rem' }}>
+          <div className="bmc-stat-card">
+            <span className="bmc-stat-label">Total Capital Base</span>
+            <div className="bmc-stat-value">₹{totalCapitalBase.toLocaleString('en-IN')}</div>
+            <span className="bmc-stat-meta">Portfolio book capital</span>
+          </div>
+          <div className="bmc-stat-card">
+            <span className="bmc-stat-label">Total Invested</span>
+            <div className="bmc-stat-value" style={{ color: 'var(--accent-electric)' }}>
+              ₹{portfolio.totalInvested?.toLocaleString('en-IN') || 0}
+            </div>
+            <span className="bmc-stat-meta">
+              {totalCapitalBase > 0 ? `${((portfolio.totalInvested / totalCapitalBase) * 100).toFixed(1)}% deployed` : '0%'}
+            </span>
+          </div>
+          <div className="bmc-stat-card">
+            <span className="bmc-stat-label">Cash Reserve</span>
+            <div className="bmc-stat-value" style={{ color: 'var(--gain-light)' }}>
+              ₹{portfolio.cash?.toLocaleString('en-IN') || 0}
+            </div>
+            <span className="bmc-stat-meta">
+              {totalCapitalBase > 0 ? `${((portfolio.cash / totalCapitalBase) * 100).toFixed(1)}% liquid cash` : '100%'}
+            </span>
+          </div>
+          <div className="bmc-stat-card">
+            <span className="bmc-stat-label">Holdings Count</span>
+            <div className="bmc-stat-value">
+              {portfolio.holdings ? Object.values(portfolio.holdings).filter(v => v > 0).length : 0}
+            </div>
+            <span className="bmc-stat-meta">Active asset classes</span>
+          </div>
+        </div>
+
+        {/* Asset Holdings Breakdown */}
+        <div style={{ marginBottom: '1rem' }}>
+          <h4 style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Asset Holdings Breakdown
+          </h4>
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Asset Class</th>
+                  <th style={{ textAlign: 'right' }}>Units / Value (₹)</th>
+                  <th style={{ width: '30%' }}>Allocation Weight</th>
+                </tr>
+              </thead>
+              <tbody>
+                {portfolio.holdings && Object.entries(portfolio.holdings).map(([key, value]) => {
+                  const numVal = Number(value) || 0;
+                  const weight = totalCapitalBase > 0 ? ((numVal / totalCapitalBase) * 100).toFixed(1) : '0.0';
+                  return (
+                    <tr key={key}>
+                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {getAssetName(key)}
+                      </td>
+                      <td className="col-mono" style={{ textAlign: 'right' }}>
+                        ₹{numVal.toLocaleString('en-IN')}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div className="progress-track" style={{ margin: 0, height: '6px' }}>
+                            <div 
+                              className="progress-bar progress-bar-electric" 
+                              style={{ width: `${Math.min(100, Number(weight))}%` }}
+                            />
+                          </div>
+                          <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', minWidth: '38px', textAlign: 'right' }}>
+                            {weight}%
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: '0.75rem 0 0 0' }}>
+          Note: This is your current portfolio state. Allocations can only be modified during specific rounds.
+        </p>
+      </div>
+
+      {/* Round-by-Round History Section */}
+      <div className="bmc-card">
+        <div className="bmc-card-header">
+          <div>
+            <h3 className="bmc-card-title">
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '26px',
+                height: '26px',
+                borderRadius: '6px',
+                background: 'rgba(99, 102, 241, 0.15)',
+                color: 'var(--accent-indigo)',
+                fontSize: '0.85rem'
+              }}>
+                📈
+              </span>
+              Round Performance History
+            </h3>
+            <p className="bmc-card-subtitle">
+              Snapshots of portfolio valuation and returns computed across completed rounds
+            </p>
+          </div>
+        </div>
+
+        {historyError && (
+          <div className="alert alert-error">
+            <span>{historyError}</span>
+          </div>
+        )}
+
+        {history.length === 0 && !historyError ? (
+          <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+            No completed round snapshots yet. Historical performance will appear after the first round transitions.
+          </div>
+        ) : history.length > 0 ? (
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Round</th>
+                  <th style={{ textAlign: 'right' }}>Invested Value (₹)</th>
+                  <th style={{ textAlign: 'right' }}>Cash (₹)</th>
+                  <th style={{ textAlign: 'right' }}>Total Portfolio Value (₹)</th>
+                  <th style={{ textAlign: 'right' }}>P/L (₹)</th>
+                  <th style={{ textAlign: 'right' }}>Return %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map(snap => {
+                  const isRoundZero = snap.round === 0;
+                  const isGain = (snap.profitLoss || 0) >= 0;
+                  const isReturnGain = (snap.returnPercentage || 0) >= 0;
+                  return (
+                    <tr key={snap.round}>
+                      <td style={{ fontWeight: 600 }}>
+                        <span className="badge badge-setup" style={{ textTransform: 'none' }}>
+                          Round {snap.round}
+                        </span>
+                      </td>
+                      <td className="col-mono" style={{ textAlign: 'right' }}>
+                        {isRoundZero ? '—' : `₹${snap.investedValue?.toLocaleString('en-IN') || '0'}`}
+                      </td>
+                      <td className="col-mono" style={{ textAlign: 'right' }}>
+                        ₹{snap.cash?.toLocaleString('en-IN') || '0'}
+                      </td>
+                      <td className="col-mono" style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {isRoundZero ? '—' : `₹${snap.totalPortfolioValue?.toLocaleString('en-IN') || '0'}`}
+                      </td>
+                      <td style={{ textAlign: 'right' }} className={isRoundZero ? '' : (isGain ? 'col-gain' : 'col-loss')}>
+                        {isRoundZero ? '—' : (
+                          <span className={`badge ${isGain ? 'badge-gain' : 'badge-loss'}`}>
+                            {isGain ? '+' : ''}₹{snap.profitLoss?.toLocaleString('en-IN') || '0'}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right' }} className={isRoundZero ? '' : (isReturnGain ? 'col-gain' : 'col-loss')}>
+                        {isRoundZero ? '—' : (
+                          <span className={`badge ${isReturnGain ? 'badge-gain' : 'badge-loss'}`}>
+                            {isReturnGain ? '+' : ''}{snap.returnPercentage?.toFixed(2)}%
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Temporary Valuation Model Section */}
+      <div className="bmc-card">
+        <div className="bmc-card-header">
+          <div>
+            <h3 className="bmc-card-title">
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '26px',
+                height: '26px',
+                borderRadius: '6px',
+                background: 'rgba(16, 185, 129, 0.15)',
+                color: 'var(--gain-light)',
+                fontSize: '0.85rem'
+              }}>
+                🧮
+              </span>
+              On-Demand Valuation Calculator
+            </h3>
+            <p className="bmc-card-subtitle">
+              Simulate portfolio value against historical or target round asset pricing
+            </p>
+          </div>
+        </div>
+
+        {/* Required Prototype Valuation Disclaimer */}
+        <div className="valuation-disclaimer" role="note">
+          <span style={{ fontWeight: 700 }}>NOTICE:</span>
+          <span>TEMPORARY DEVELOPMENT VALUATION MODEL — replace when official financial rules are finalized.</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label htmlFor="participant-round-select" className="form-label" style={{ margin: 0, whiteSpace: 'nowrap' }}>
+              Select Round:
+            </label>
+            <select 
+              id="participant-round-select"
+              value={selectedRound} 
+              onChange={(e) => setSelectedRound(parseInt(e.target.value))} 
+              className="form-select"
+              style={{ width: '130px', padding: '0.45rem 0.65rem' }}
+            >
               {[...Array(20)].map((_, i) => (
                 <option key={i+1} value={i+1}>Round {i+1}</option>
               ))}
             </select>
           </div>
+          
           <button 
+            type="button"
             onClick={calculateValuation} 
             disabled={valuationLoading}
-            style={{ padding: '6px 12px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: valuationLoading ? 'not-allowed' : 'pointer' }}
+            className="btn btn-primary"
           >
-            {valuationLoading ? 'Calculating...' : 'Calculate Valuation'}
+            {valuationLoading ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span className="badge-dot" style={{ background: '#fff', animation: 'pulse-dot 1s infinite' }} />
+                Calculating...
+              </span>
+            ) : (
+              'Calculate Valuation'
+            )}
           </button>
         </div>
 
-        {valuationError && <div style={{ color: 'red', marginBottom: '15px' }}>{valuationError}</div>}
+        {valuationError && (
+          <div className="alert alert-error" role="alert">
+            <span><strong>Valuation Error:</strong> {valuationError}</span>
+          </div>
+        )}
 
         {valuation && (
-          <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '4px' }}>
-            <h4>Valuation Results (Round {valuation.round})</h4>
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #ccc' }}>
-                  <th style={{ padding: '8px' }}>Asset</th>
-                  <th style={{ padding: '8px' }}>Holding (₹)</th>
-                  <th style={{ padding: '8px' }}>Current Value</th>
-                  <th style={{ padding: '8px' }}>Calculated Value (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.keys(valuation.assets).map(key => (
-                  <tr key={key} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '8px' }}>{getAssetName(key)}</td>
-                    <td style={{ padding: '8px' }}>{valuation.assets[key].holding?.toLocaleString('en-IN')}</td>
-                    <td style={{ padding: '8px' }}>{valuation.assets[key].assetValue}</td>
-                    <td style={{ padding: '8px' }}>{valuation.assets[key].calculatedValue?.toLocaleString('en-IN')}</td>
+          <div style={{
+            background: 'rgba(15, 23, 42, 0.75)',
+            border: '1px solid var(--border-default)',
+            borderRadius: '12px',
+            padding: '1.25rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                Valuation Results (Round {valuation.round})
+              </h4>
+              <span className="badge badge-setup">
+                Round {valuation.round} Price Basis
+              </span>
+            </div>
+
+            <div className="table-wrapper" style={{ marginBottom: '1.25rem' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Asset Class</th>
+                    <th style={{ textAlign: 'right' }}>Holding (₹)</th>
+                    <th style={{ textAlign: 'right' }}>Asset Multiplier</th>
+                    <th style={{ textAlign: 'right' }}>Calculated Value (₹)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {Object.keys(valuation.assets).map(key => (
+                    <tr key={key}>
+                      <td style={{ fontWeight: 600 }}>{getAssetName(key)}</td>
+                      <td className="col-mono" style={{ textAlign: 'right' }}>
+                        ₹{valuation.assets[key].holding?.toLocaleString('en-IN')}
+                      </td>
+                      <td className="col-mono" style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
+                        {valuation.assets[key].assetValue}
+                      </td>
+                      <td className="col-mono" style={{ textAlign: 'right', color: 'var(--accent-electric)' }}>
+                        ₹{valuation.assets[key].calculatedValue?.toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             
-            <p><strong>Cash:</strong> ₹{valuation.cash?.toLocaleString('en-IN')}</p>
-            <p><strong>Total Invested Value:</strong> ₹{valuation.totalInvestedValue?.toLocaleString('en-IN')}</p>
-            <p style={{ fontSize: '18px' }}><strong>Total Portfolio Value:</strong> ₹{valuation.totalPortfolioValue?.toLocaleString('en-IN')}</p>
-            
-            <hr style={{ margin: '15px 0' }} />
-            <p style={{ color: valuation.profitLoss >= 0 ? 'green' : 'red' }}>
-              <strong>Temporary P/L:</strong> ₹{valuation.profitLoss?.toLocaleString('en-IN')}
-            </p>
-            <p style={{ color: valuation.percentageReturn >= 0 ? 'green' : 'red' }}>
-              <strong>Temporary Return:</strong> {valuation.percentageReturn?.toFixed(2)}%
-            </p>
+            {/* Summary Metrics */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '1rem',
+              padding: '1rem',
+              background: 'rgba(6, 9, 19, 0.5)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-subtle)'
+            }}>
+              <div>
+                <span className="bmc-stat-label">Liquid Cash</span>
+                <div className="col-mono" style={{ fontSize: '1.15rem' }}>
+                  ₹{valuation.cash?.toLocaleString('en-IN')}
+                </div>
+              </div>
+              <div>
+                <span className="bmc-stat-label">Invested Assets</span>
+                <div className="col-mono" style={{ fontSize: '1.15rem' }}>
+                  ₹{valuation.totalInvestedValue?.toLocaleString('en-IN')}
+                </div>
+              </div>
+              <div>
+                <span className="bmc-stat-label">Total Portfolio Value</span>
+                <div className="col-mono" style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--accent-electric)' }}>
+                  ₹{valuation.totalPortfolioValue?.toLocaleString('en-IN')}
+                </div>
+              </div>
+              <div>
+                <span className="bmc-stat-label">Temporary P/L & Return</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
+                  <span className={`badge ${valuation.profitLoss >= 0 ? 'badge-gain' : 'badge-loss'}`}>
+                    {valuation.profitLoss >= 0 ? '+' : ''}₹{valuation.profitLoss?.toLocaleString('en-IN')}
+                  </span>
+                  <span className={`badge ${valuation.percentageReturn >= 0 ? 'badge-gain' : 'badge-loss'}`}>
+                    {valuation.percentageReturn >= 0 ? '+' : ''}{valuation.percentageReturn?.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -15,11 +15,25 @@ dist-ssr
 # Environment variables
 .env
 .env.*
+.env.local
+.env.*.local
+!.env.example
+!**/.env.example
 
-# Firebase Admin credentials
-backend/firebase-service-account.json
-firebase-service-account.json
+# Service account & credentials (all variations)
+*service-account*.json
+*serviceAccount*.json
 *-firebase-adminsdk-*.json
+*credential*.json
+*credentials*.json
+credentials.json
+service-account.json
+serviceAccountKey.json
+
+# Local test credential files
+*test-credentials*
+*test-credential*
+local-credentials/
 
 
 # Editor directories and files

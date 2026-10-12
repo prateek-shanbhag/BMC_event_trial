@@ -68,118 +68,191 @@ function SimulationControl() {
 
   if (!config) {
     return (
-      <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px', gridColumn: '1 / -1' }}>
-        <h3>Simulation Control</h3>
+      <div className="bmc-card">
+        <div className="bmc-card-header">
+          <h3 className="bmc-card-title">Simulation Lifecycle Engine</h3>
+        </div>
         {error ? (
-          <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>
+          <div className="alert alert-error" role="alert">{error}</div>
         ) : (
-          <p>Loading...</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span className="badge-dot" style={{ background: 'var(--accent-electric)', animation: 'pulse-dot 1.2s infinite' }} />
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Loading simulation engine parameters...</span>
+          </div>
         )}
       </div>
     );
   }
 
-  const getStatusColor = (status) => {
+  const getStatusBadgeClass = (status) => {
     switch (status) {
-      case 'SETUP': return '#9e9e9e'; // Grey
-      case 'ALLOCATION': return '#ff9800'; // Orange
-      case 'RUNNING': return '#4caf50'; // Green
-      case 'FINISHED': return '#2196f3'; // Blue
-      default: return '#000';
+      case 'SETUP': return 'badge-setup';
+      case 'ALLOCATION': return 'badge-allocation';
+      case 'RUNNING': return 'badge-running';
+      case 'FINISHED': return 'badge-finished';
+      default: return 'badge-setup';
     }
   };
 
   return (
-    <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px', gridColumn: '1 / -1' }}>
-      <h3 style={{ marginTop: 0 }}>Simulation Control</h3>
+    <div className="bmc-card">
+      <div className="bmc-card-header">
+        <div>
+          <h3 className="bmc-card-title">
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '26px',
+              height: '26px',
+              borderRadius: '6px',
+              background: 'rgba(56, 189, 248, 0.15)',
+              color: 'var(--accent-electric)',
+              fontSize: '0.85rem'
+            }}>
+              ⚙️
+            </span>
+            Simulation Control & Round Engine
+          </h3>
+          <p className="bmc-card-subtitle">
+            Manage stage transitions, progression from Round 0 to Round 20, and event finalization
+          </p>
+        </div>
+        <span className={`badge ${getStatusBadgeClass(config.status)}`}>
+          <span className="badge-dot" />
+          Status: {config.status}
+        </span>
+      </div>
       
-      {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
-      {success && <div style={{ color: 'green', marginBottom: '10px' }}>{success}</div>}
+      {error && (
+        <div className="alert alert-error" role="alert">
+          <span><strong>Action Error:</strong> {error}</span>
+        </div>
+      )}
+      {success && (
+        <div className="alert alert-success" role="status">
+          <span>{success}</span>
+        </div>
+      )}
 
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <div style={{ padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '4px', flex: 1, minWidth: '150px' }}>
-          <strong>Status:</strong> <span style={{ color: getStatusColor(config.status), fontWeight: 'bold' }}>{config.status}</span>
+      {/* Engine Metrics Grid */}
+      <div className="bmc-stat-grid" style={{ marginBottom: '1.5rem' }}>
+        <div className="bmc-stat-card">
+          <span className="bmc-stat-label">Current Round</span>
+          <div className="bmc-stat-value" style={{ color: 'var(--accent-electric)' }}>
+            {config.currentRound} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>/ {config.totalRounds}</span>
+          </div>
+          <span className="bmc-stat-meta">
+            {config.currentRound === 0 ? 'Genesis Allocation' : `Round ${config.currentRound} Active`}
+          </span>
         </div>
-        <div style={{ padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '4px', flex: 1, minWidth: '150px' }}>
-          <strong>Current Round:</strong> <span style={{ fontSize: '1.1em', fontWeight: 'bold' }}>{config.currentRound}</span> / {config.totalRounds}
+
+        <div className="bmc-stat-card">
+          <span className="bmc-stat-label">Lifecycle Stage</span>
+          <div className="bmc-stat-value" style={{ fontSize: '1.35rem' }}>
+            {config.status}
+          </div>
+          <span className="bmc-stat-meta">Authoritative state</span>
         </div>
-        <div style={{ padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '4px', flex: 1, minWidth: '150px' }}>
-          <strong>Starting Capital:</strong> ₹{config.startingCapital?.toLocaleString('en-IN')}
+
+        <div className="bmc-stat-card">
+          <span className="bmc-stat-label">Starting Capital</span>
+          <div className="bmc-stat-value">
+            ₹{config.startingCapital?.toLocaleString('en-IN')}
+          </div>
+          <span className="bmc-stat-meta">Per team allotment</span>
         </div>
-        <div style={{ padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '4px', flex: 1, minWidth: '150px' }}>
-          <strong>Allocation Window:</strong> {config.allocationWindowSeconds} sec
+
+        <div className="bmc-stat-card">
+          <span className="bmc-stat-label">Allocation Window</span>
+          <div className="bmc-stat-value">
+            {config.allocationWindowSeconds}s
+          </div>
+          <span className="bmc-stat-meta">Timer threshold</span>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-        {config.status === 'SETUP' && (
+      {/* Control Actions Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '1.25rem',
+        background: 'rgba(15, 23, 42, 0.65)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: '12px',
+        flexWrap: 'wrap',
+        gap: '1rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {config.status === 'SETUP' && (
+            <button 
+              type="button"
+              disabled={loading}
+              onClick={() => handleAction('start-allocation', 'Initial allocation phase started.')}
+              className="btn btn-warning btn-lg"
+            >
+              ▶ Start Allocation Phase (Round 0)
+            </button>
+          )}
+
+          {config.status === 'ALLOCATION' && (
+            <button 
+              type="button"
+              disabled={loading}
+              onClick={() => handleAction('start-round-1', 'Round 1 has started.')}
+              className="btn btn-success btn-lg"
+            >
+              🚀 Launch Round 1 Trading
+            </button>
+          )}
+
+          {config.status === 'RUNNING' && config.currentRound < config.totalRounds && (
+            <button 
+              type="button"
+              disabled={loading}
+              onClick={() => handleAction('advance-round', `Advanced to Round ${config.currentRound + 1}`)}
+              className="btn btn-success btn-lg"
+            >
+              ⏩ Advance to Round {config.currentRound + 1}
+            </button>
+          )}
+
+          {config.status === 'RUNNING' && config.currentRound === config.totalRounds && (
+            <button 
+              type="button"
+              disabled={loading}
+              onClick={() => handleAction('finish', 'Simulation has been marked as FINISHED.')}
+              className="btn btn-primary btn-lg"
+            >
+              🏁 Conclude & Finish Simulation
+            </button>
+          )}
+
+          {config.status === 'FINISHED' && (
+            <div className="badge badge-finished" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
+              <span className="badge-dot" />
+              Simulation Concluded & Locked
+            </div>
+          )}
+        </div>
+
+        {/* Danger Zone: Safeguarded Reset Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button 
+            type="button"
             disabled={loading}
-            onClick={() => handleAction('start-allocation', 'Initial allocation phase started.')}
-            style={buttonStyle('#ff9800')}
+            onClick={handleReset}
+            className="btn btn-danger btn-sm"
+            style={{ opacity: loading ? 0.5 : 1 }}
+            title="Reset simulation lifecycle back to Round 0 SETUP"
           >
-            Start Allocation
+            ⚠️ Reset Lifecycle
           </button>
-        )}
-
-        {config.status === 'ALLOCATION' && (
-          <button 
-            disabled={loading}
-            onClick={() => handleAction('start-round-1', 'Round 1 has started.')}
-            style={buttonStyle('#4caf50')}
-          >
-            Start Round 1
-          </button>
-        )}
-
-        {config.status === 'RUNNING' && config.currentRound < config.totalRounds && (
-          <button 
-            disabled={loading}
-            onClick={() => handleAction('advance-round', `Advanced to Round ${config.currentRound + 1}`)}
-            style={buttonStyle('#4caf50')}
-          >
-            Advance to Next Round
-          </button>
-        )}
-
-        {config.status === 'RUNNING' && config.currentRound === config.totalRounds && (
-          <button 
-            disabled={loading}
-            onClick={() => handleAction('finish', 'Simulation has been marked as FINISHED.')}
-            style={buttonStyle('#2196f3')}
-          >
-            Finish Simulation
-          </button>
-        )}
-
-        {config.status === 'FINISHED' && (
-          <div style={{ padding: '8px 16px', backgroundColor: '#e3f2fd', color: '#1976d2', borderRadius: '4px', fontWeight: 'bold' }}>
-            Simulation Finished
-          </div>
-        )}
-
-        <div style={{ flexGrow: 1 }} />
-        
-        <button 
-          disabled={loading}
-          onClick={handleReset}
-          style={{ ...buttonStyle('#f44336'), opacity: loading ? 0.5 : 1 }}
-        >
-          Reset
-        </button>
+        </div>
       </div>
     </div>
   );
 }
-
-const buttonStyle = (bgColor) => ({
-  padding: '10px 16px',
-  backgroundColor: bgColor,
-  color: 'white',
-  border: 'none',
-  borderRadius: '4px',
-  cursor: 'pointer',
-  fontWeight: 'bold'
-});
 
 export default SimulationControl;

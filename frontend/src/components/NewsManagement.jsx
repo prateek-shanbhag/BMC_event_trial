@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 function NewsManagement() {
@@ -133,124 +133,217 @@ function NewsManagement() {
     }
   };
 
-  if (loading && news.length === 0) return <div>Loading News Management...</div>;
+  if (loading && news.length === 0) {
+    return (
+      <div className="bmc-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span className="badge-dot" style={{ background: 'var(--accent-electric)', animation: 'pulse-dot 1.2s infinite' }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Loading event news and market alerts...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ marginTop: '20px', border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>
-      <h3>News Management</h3>
+    <div className="bmc-card">
+      <div className="bmc-card-header">
+        <div>
+          <h3 className="bmc-card-title">
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '26px',
+              height: '26px',
+              borderRadius: '6px',
+              background: 'rgba(56, 189, 248, 0.15)',
+              color: 'var(--accent-electric)',
+              fontSize: '0.85rem'
+            }}>
+              📰
+            </span>
+            Market Intelligence & News Broadcasts
+          </h3>
+          <p className="bmc-card-subtitle">
+            Draft, publish, and schedule round-specific economic releases for participants
+          </p>
+        </div>
+        <span className="badge badge-setup">
+          {news.length} Total News Bulletins
+        </span>
+      </div>
       
-      {error && <div style={{ color: 'white', backgroundColor: '#f44336', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>{error}</div>}
+      {error && (
+        <div className="alert alert-error" role="alert">
+          <span><strong>News Error:</strong> {error}</span>
+        </div>
+      )}
 
-      <div style={{ marginBottom: '30px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
-        <h4 style={{ marginTop: 0 }}>{editingId ? 'Edit News' : 'Create News'}</h4>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Title</label>
-            <input 
-              type="text" 
-              value={title} 
-              onChange={(e) => setTitle(e.target.value)} 
-              required
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-            />
+      {/* Create / Edit Form Card */}
+      <div style={{
+        background: 'rgba(15, 23, 42, 0.65)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: '12px',
+        padding: '1.25rem',
+        marginBottom: '1.75rem'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>
+            {editingId ? 'Edit Event Announcement' : 'Compose New Market Bulletin'}
+          </h4>
+          {editingId && (
+            <span className="badge badge-allocation">
+              Editing Bulletin #{editingId}
+            </span>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 140px', gap: '1rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" htmlFor="news-title">
+                Headline / Title
+              </label>
+              <input 
+                id="news-title"
+                type="text" 
+                value={title} 
+                onChange={(e) => setTitle(e.target.value)} 
+                placeholder="e.g., Central Bank Holds Benchmark Repo Rate Steady"
+                required
+                className="form-input"
+              />
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" htmlFor="news-round">
+                Target Round (1-20)
+              </label>
+              <input 
+                id="news-round"
+                type="number" 
+                value={round} 
+                onChange={(e) => setRound(parseInt(e.target.value))} 
+                min="1" 
+                max="20"
+                required
+                className="form-input form-input-mono"
+              />
+            </div>
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Description</label>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="news-description">
+              Announcement Body / Macro Impact Details
+            </label>
             <textarea 
+              id="news-description"
               value={description} 
               onChange={(e) => setDescription(e.target.value)} 
+              placeholder="Detail the market event and its anticipated impact on asset classes..."
               required
-              rows="3"
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+              rows={3}
+              className="form-textarea"
             />
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Round (1-20)</label>
-            <input 
-              type="number" 
-              value={round} 
-              onChange={(e) => setRound(parseInt(e.target.value))} 
-              min="1" 
-              max="20"
-              required
-              style={{ padding: '8px' }}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="submit" style={{ padding: '8px 16px', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-              {editingId ? 'Save Changes' : 'Create'}
-            </button>
+
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
             {editingId && (
-              <button type="button" onClick={resetForm} style={{ padding: '8px 16px', backgroundColor: '#888', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+              <button 
+                type="button" 
+                onClick={resetForm} 
+                className="btn btn-secondary"
+              >
                 Cancel
               </button>
             )}
+            <button 
+              type="submit" 
+              className="btn btn-primary"
+            >
+              {editingId ? '💾 Save Changes' : '➕ Create Bulletin'}
+            </button>
           </div>
         </form>
       </div>
 
-      <h4 style={{ marginTop: 0 }}>All News</h4>
+      {/* News Items Listing */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          Published & Draft Bulletins
+        </h4>
+      </div>
+
       {news.length === 0 ? (
-        <p>No news items found.</p>
+        <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          No news bulletins created yet. Use the form above to compose the first release.
+        </div>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#eee' }}>
-              <th style={{ padding: '10px', borderBottom: '2px solid #ccc' }}>Round</th>
-              <th style={{ padding: '10px', borderBottom: '2px solid #ccc' }}>Title</th>
-              <th style={{ padding: '10px', borderBottom: '2px solid #ccc' }}>Status</th>
-              <th style={{ padding: '10px', borderBottom: '2px solid #ccc' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {news.map(item => (
-              <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px' }}>{item.round}</td>
-                <td style={{ padding: '10px' }}>
-                  <div style={{ fontWeight: 'bold' }}>{item.title}</div>
-                  <div style={{ fontSize: '0.85em', color: '#666' }}>{item.description}</div>
-                </td>
-                <td style={{ padding: '10px' }}>
-                  <span style={{ 
-                    padding: '4px 8px', 
-                    borderRadius: '12px', 
-                    fontSize: '0.85em', 
-                    fontWeight: 'bold',
-                    backgroundColor: item.status === 'PUBLISHED' ? '#e6f4ea' : '#fff3e0',
-                    color: item.status === 'PUBLISHED' ? '#1e8e3e' : '#e65100'
-                  }}>
-                    {item.status}
-                  </span>
-                </td>
-                <td style={{ padding: '10px' }}>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button onClick={() => handleEdit(item)} style={{ padding: '4px 8px', fontSize: '0.85em', cursor: 'pointer' }}>Edit</button>
-                    <button 
-                      onClick={() => handleTogglePublish(item.id, item.status)}
-                      style={{ 
-                        padding: '4px 8px', 
-                        fontSize: '0.85em', 
-                        cursor: 'pointer',
-                        backgroundColor: item.status === 'PUBLISHED' ? '#ff9800' : '#4caf50',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px'
-                      }}
-                    >
-                      {item.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(item.id)}
-                      style={{ padding: '4px 8px', fontSize: '0.85em', cursor: 'pointer', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '4px' }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ width: '10%' }}>Round</th>
+                <th style={{ width: '50%' }}>Headline & Summary</th>
+                <th style={{ width: '15%' }}>Status</th>
+                <th style={{ width: '25%', textAlign: 'right' }}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {news.map(item => {
+                const isPublished = item.status === 'PUBLISHED';
+                return (
+                  <tr key={item.id}>
+                    <td>
+                      <span className="badge badge-setup" style={{ textTransform: 'none' }}>
+                        Round {item.round}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                        {item.title}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                        {item.description}
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`badge ${isPublished ? 'badge-running' : 'badge-allocation'}`}>
+                        <span className="badge-dot" />
+                        {item.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'inline-flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <button 
+                          type="button"
+                          onClick={() => handleEdit(item)} 
+                          className="btn btn-secondary btn-sm"
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => handleTogglePublish(item.id, item.status)}
+                          className={`btn ${isPublished ? 'btn-warning' : 'btn-success'} btn-sm`}
+                        >
+                          {isPublished ? 'Unpublish' : 'Publish'}
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => handleDelete(item.id)}
+                          className="btn btn-danger btn-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -56,17 +56,18 @@ cd backend
 cp .env.example .env
 ```
 Update `.env` with your backend variables:
-- **Backend-only required variables**:
+- **Backend required variables**:
   - `PORT` (Optional, defaults to 5000)
   - `FRONTEND_URL` (e.g., `http://localhost:5173`)
+  - `GOOGLE_APPLICATION_CREDENTIALS` (Recommended for local development: path to service account JSON key file located outside the repository)
   - `FIREBASE_PROJECT_ID`
-  - `FIREBASE_CLIENT_EMAIL`
-  - `FIREBASE_PRIVATE_KEY`
+  - Or alternatively `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` for inline environments.
 
-**Security Notes on Firebase Credentials**:
-- The backend `FIREBASE_PRIVATE_KEY` and other sensitive admin credentials must **never** be shared with the frontend or exposed in frontend code.
-- Both frontend and backend environment files (`.env`, `.env.local`, `.env.*`) are strictly ignored by Git.
-- Firebase Admin SDK private key JSON files (e.g., `firebase-service-account.json` or `*-firebase-adminsdk-*.json`) are also strictly ignored by Git and must never be committed or exposed via APIs.
+**Security Notes on Firebase Credentials & Testing**:
+- Service account private keys and credentials must **never** be committed to Git or stored in the repository.
+- Use `GOOGLE_APPLICATION_CREDENTIALS` pointing to an external file outside the repository for local development, or standard Application Default Credentials (ADC) in cloud deployment environments.
+- All environment files (`.env`, `.env.*`) and credential JSON files are strictly excluded by `.gitignore`.
+- For automated testing and destructive script safeguards (`ALLOW_DESTRUCTIVE_TESTS`, `NODE_ENV=test`, `TEST_FIREBASE_PROJECT_ID`, `--confirm-destructive-test`), see [docs/TESTING_SECURITY.md](docs/TESTING_SECURITY.md).
 
 ### 3. Start the development servers
 

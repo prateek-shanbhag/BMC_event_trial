@@ -164,194 +164,432 @@ function AdminPortfolioManagement() {
   const selectedPortfolio = portfolios.find(p => p.teamId === selectedTeamId);
 
   return (
-    <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px' }}>
-      <h3>Portfolio & Simulation Monitoring</h3>
-      
-      {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
-      {message && <div style={{ color: 'green', marginBottom: '10px' }}>{message}</div>}
-
-      <div style={{ marginBottom: '20px', padding: '15px', background: '#eef', borderRadius: '4px' }}>
-        <h4>Simulation Status</h4>
-        <p><strong>Current Round:</strong> {simulationState?.currentRound ?? '-'}</p>
-        <p><strong>Status:</strong> {simulationState?.status ?? '-'}</p>
-        <p><strong>Total Rounds:</strong> 20</p>
-      </div>
-
-      <div style={{ marginBottom: '20px' }}>
+    <div className="bmc-card">
+      <div className="bmc-card-header">
+        <div>
+          <h3 className="bmc-card-title">
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '26px',
+              height: '26px',
+              borderRadius: '6px',
+              background: 'rgba(56, 189, 248, 0.15)',
+              color: 'var(--accent-electric)',
+              fontSize: '0.85rem'
+            }}>
+              📊
+            </span>
+            Portfolio & Simulation Monitoring
+          </h3>
+          <p className="bmc-card-subtitle">
+            Inspect team holdings, trigger batch initialization, and evaluate round performance
+          </p>
+        </div>
         <button 
+          type="button"
           onClick={handleInitialize} 
           disabled={loading}
-          style={{ padding: '8px 16px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer', marginBottom: '15px' }}
+          className="btn btn-primary"
         >
-          {loading ? 'Initializing...' : 'Initialize Portfolios'}
+          {loading ? 'Initializing Portfolios...' : '⚡ Initialize Portfolios'}
         </button>
-        
-        <h4>Team Portfolios</h4>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginBottom: '20px' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #ddd' }}>
-              <th style={{ padding: '8px' }}>Team</th>
-              <th style={{ padding: '8px' }}>Cash</th>
-              <th style={{ padding: '8px' }}>Status</th>
-              <th style={{ padding: '8px' }}>Current Round</th>
-            </tr>
-          </thead>
-          <tbody>
-            {portfolios.length === 0 ? (
-              <tr>
-                <td colSpan="4" style={{ padding: '8px', textAlign: 'center' }}>No portfolios initialized yet.</td>
-              </tr>
-            ) : (
-              portfolios.map(p => (
-                <tr 
-                  key={p.id} 
-                  style={{ borderBottom: '1px solid #ddd', cursor: 'pointer', background: selectedTeamId === p.teamId ? '#f0f8ff' : 'transparent' }}
-                  onClick={() => setSelectedTeamId(p.teamId)}
-                >
-                  <td style={{ padding: '8px' }}>{p.teamName || getTeamName(p.teamId)}</td>
-                  <td style={{ padding: '8px' }}>₹{p.cash?.toLocaleString('en-IN')}</td>
-                  <td style={{ padding: '8px' }}>{p.status}</td>
-                  <td style={{ padding: '8px' }}>{p.currentRound}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      </div>
+      
+      {error && (
+        <div className="alert alert-error" role="alert">
+          <span><strong>Monitoring Error:</strong> {error}</span>
+        </div>
+      )}
+      {message && (
+        <div className="alert alert-success" role="status">
+          <span>{message}</span>
+        </div>
+      )}
+
+      {/* KPI Stats Bar */}
+      <div className="bmc-stat-grid" style={{ marginBottom: '1.5rem' }}>
+        <div className="bmc-stat-card">
+          <span className="bmc-stat-label">Total Teams</span>
+          <div className="bmc-stat-value">{teams.length}</div>
+          <span className="bmc-stat-meta">Registered squads</span>
+        </div>
+        <div className="bmc-stat-card">
+          <span className="bmc-stat-label">Active Portfolios</span>
+          <div className="bmc-stat-value" style={{ color: 'var(--accent-electric)' }}>
+            {portfolios.length}
+          </div>
+          <span className="bmc-stat-meta">Initialized portfolios</span>
+        </div>
+        <div className="bmc-stat-card">
+          <span className="bmc-stat-label">Simulation Round</span>
+          <div className="bmc-stat-value">
+            {simulationState?.currentRound ?? '-'} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>/ 20</span>
+          </div>
+          <span className="bmc-stat-meta">Stage: {simulationState?.status ?? '-'}</span>
+        </div>
+        <div className="bmc-stat-card">
+          <span className="bmc-stat-label">Selected Squad</span>
+          <div className="bmc-stat-value" style={{ fontSize: '1.15rem', color: selectedTeamId ? 'var(--gain-light)' : 'var(--text-muted)' }}>
+            {selectedTeamId ? getTeamName(selectedTeamId) : 'None'}
+          </div>
+          <span className="bmc-stat-meta">Click a team row to inspect</span>
+        </div>
       </div>
 
+      {/* Team Portfolios Table */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            All Team Portfolios
+          </h4>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Tip: Click any row to view deep holdings & valuation
+          </span>
+        </div>
+
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Team Squad</th>
+                <th style={{ textAlign: 'right' }}>Cash Reserve</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Current Round</th>
+              </tr>
+            </thead>
+            <tbody>
+              {portfolios.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                    No team portfolios initialized yet. Click &quot;Initialize Portfolios&quot; above to initialize.
+                  </td>
+                </tr>
+              ) : (
+                portfolios.map(p => {
+                  const isSelected = selectedTeamId === p.teamId;
+                  return (
+                    <tr 
+                      key={p.id} 
+                      onClick={() => setSelectedTeamId(p.teamId)}
+                      style={{ 
+                        cursor: 'pointer',
+                        background: isSelected ? 'rgba(56, 189, 248, 0.12)' : undefined,
+                        borderLeft: isSelected ? '3px solid var(--accent-electric)' : undefined
+                      }}
+                    >
+                      <td style={{ fontWeight: 600, color: isSelected ? 'var(--accent-electric)' : 'var(--text-primary)' }}>
+                        {p.teamName || getTeamName(p.teamId)}
+                      </td>
+                      <td className="col-mono" style={{ textAlign: 'right' }}>
+                        ₹{p.cash?.toLocaleString('en-IN')}
+                      </td>
+                      <td>
+                        <span className="badge badge-setup">
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="col-mono" style={{ textAlign: 'right' }}>
+                        {p.currentRound}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Deep-Dive Inspection Panel for Selected Team */}
       {selectedTeamId && (
-        <div style={{ padding: '20px', borderTop: '2px solid #ddd' }}>
-          <h3>Team: {getTeamName(selectedTeamId)}</h3>
+        <div style={{
+          marginTop: '2rem',
+          paddingTop: '1.5rem',
+          borderTop: '1px solid var(--border-default)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div>
+              <span className="bmc-stat-label">Squad Profile</span>
+              <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.25rem', color: 'var(--accent-electric)' }}>
+                {getTeamName(selectedTeamId)}
+              </h3>
+            </div>
+            <span className="badge badge-running">
+              Inspecting Team ID: {selectedTeamId}
+            </span>
+          </div>
           
           {selectedPortfolio ? (
-            <>
-              <div style={{ marginBottom: '30px' }}>
-                <h4>Current Portfolio</h4>
-                <ul style={{ listStyleType: 'none', padding: 0 }}>
-                  {selectedPortfolio.holdings && Object.entries(selectedPortfolio.holdings).map(([key, value]) => (
-                    <li key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                      <span>{getAssetName(key)}</span>
-                      <span>{value?.toLocaleString('en-IN') || 0} units</span>
-                    </li>
-                  ))}
-                </ul>
-                <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '4px', marginTop: '10px' }}>
-                  <p style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0' }}>
-                    <strong>Total Invested:</strong>
-                    <span>₹{selectedPortfolio.totalInvested?.toLocaleString('en-IN') || 0}</span>
-                  </p>
-                  <p style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0' }}>
-                    <strong>Cash:</strong>
-                    <span>₹{selectedPortfolio.cash?.toLocaleString('en-IN') || 0}</span>
-                  </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+              {/* Holdings Breakdown */}
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.65)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.25rem'
+              }}>
+                <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  Current Holdings Allocation
+                </h4>
+
+                <div className="table-wrapper">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Asset Class</th>
+                        <th style={{ textAlign: 'right' }}>Held Quantity (Units)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedPortfolio.holdings && Object.entries(selectedPortfolio.holdings).map(([key, value]) => (
+                        <tr key={key}>
+                          <td style={{ fontWeight: 600 }}>{getAssetName(key)}</td>
+                          <td className="col-mono" style={{ textAlign: 'right', color: 'var(--accent-electric)' }}>
+                            {value?.toLocaleString('en-IN') || 0} units
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '1rem',
+                  background: 'rgba(6, 9, 19, 0.5)',
+                  borderRadius: '8px',
+                  marginTop: '1rem',
+                  flexWrap: 'wrap',
+                  gap: '1rem'
+                }}>
+                  <div>
+                    <span className="bmc-stat-label">Total Invested</span>
+                    <div className="col-mono" style={{ fontSize: '1.15rem' }}>
+                      ₹{selectedPortfolio.totalInvested?.toLocaleString('en-IN') || 0}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="bmc-stat-label">Liquid Cash</span>
+                    <div className="col-mono" style={{ fontSize: '1.15rem', color: 'var(--gain-light)' }}>
+                      ₹{selectedPortfolio.cash?.toLocaleString('en-IN') || 0}
+                    </div>
+                  </div>
                 </div>
               </div>
               
-              <div style={{ marginBottom: '30px' }}>
-                <h4>Temporary Valuation Model</h4>
-                <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', alignItems: 'center' }}>
-                  <div>
-                    <label>Round: </label>
-                    <select value={selectedRound} onChange={(e) => setSelectedRound(parseInt(e.target.value))} style={{ padding: '4px' }}>
+              {/* Temporary Valuation Tool for Admin */}
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.65)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.25rem'
+              }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  Valuation Model Inspector
+                </h4>
+                <div className="valuation-disclaimer" role="note" style={{ marginBottom: '1rem' }}>
+                  <span>TEMPORARY DEVELOPMENT VALUATION MODEL — replace when official financial rules are finalized.</span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <label htmlFor="admin-valuation-round" className="form-label" style={{ margin: 0 }}>
+                      Round:
+                    </label>
+                    <select 
+                      id="admin-valuation-round"
+                      value={selectedRound} 
+                      onChange={(e) => setSelectedRound(parseInt(e.target.value))} 
+                      className="form-select"
+                      style={{ width: '130px', padding: '0.45rem 0.65rem' }}
+                    >
                       {[...Array(20)].map((_, i) => (
                         <option key={i+1} value={i+1}>Round {i+1}</option>
                       ))}
                     </select>
                   </div>
                   <button 
+                    type="button"
                     onClick={calculateValuation} 
                     disabled={valuationLoading}
-                    style={{ padding: '6px 12px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: valuationLoading ? 'not-allowed' : 'pointer' }}
+                    className="btn btn-primary"
                   >
-                    {valuationLoading ? 'Calculating...' : 'Calculate Valuation'}
+                    {valuationLoading ? 'Computing...' : 'Calculate Valuation'}
                   </button>
                 </div>
 
-                {valuationError && <div style={{ color: 'red', marginBottom: '15px' }}>{valuationError}</div>}
+                {valuationError && (
+                  <div className="alert alert-error" role="alert">
+                    <span>{valuationError}</span>
+                  </div>
+                )}
 
                 {valuation && (
-                  <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '4px' }}>
-                    <h5>Valuation Results (Round {valuation.round})</h5>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', textAlign: 'left' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid #ccc' }}>
-                          <th style={{ padding: '8px' }}>Asset</th>
-                          <th style={{ padding: '8px' }}>Holding</th>
-                          <th style={{ padding: '8px' }}>Current Value</th>
-                          <th style={{ padding: '8px' }}>Calculated Value (₹)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.keys(valuation.assets).map(key => (
-                          <tr key={key} style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: '8px' }}>{getAssetName(key)}</td>
-                            <td style={{ padding: '8px' }}>{valuation.assets[key].holding?.toLocaleString('en-IN')} units</td>
-                            <td style={{ padding: '8px' }}>{valuation.assets[key].assetValue}</td>
-                            <td style={{ padding: '8px' }}>{valuation.assets[key].calculatedValue?.toLocaleString('en-IN')}</td>
+                  <div style={{
+                    background: 'rgba(6, 9, 19, 0.5)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '10px',
+                    padding: '1.25rem',
+                    marginTop: '1rem'
+                  }}>
+                    <h5 style={{ margin: '0 0 1rem 0', color: 'var(--text-primary)' }}>
+                      Valuation Outcome (Round {valuation.round})
+                    </h5>
+                    <div className="table-wrapper" style={{ marginBottom: '1rem' }}>
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Asset Class</th>
+                            <th style={{ textAlign: 'right' }}>Holding Units</th>
+                            <th style={{ textAlign: 'right' }}>Round Multiplier</th>
+                            <th style={{ textAlign: 'right' }}>Calculated Value (₹)</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {Object.keys(valuation.assets).map(key => (
+                            <tr key={key}>
+                              <td style={{ fontWeight: 600 }}>{getAssetName(key)}</td>
+                              <td className="col-mono" style={{ textAlign: 'right' }}>
+                                {valuation.assets[key].holding?.toLocaleString('en-IN')}
+                              </td>
+                              <td className="col-mono" style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
+                                {valuation.assets[key].assetValue}
+                              </td>
+                              <td className="col-mono" style={{ textAlign: 'right', color: 'var(--accent-electric)' }}>
+                                ₹{valuation.assets[key].calculatedValue?.toLocaleString('en-IN')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                     
-                    <p><strong>Cash:</strong> ₹{valuation.cash?.toLocaleString('en-IN')}</p>
-                    <p><strong>Total Invested Value:</strong> ₹{valuation.totalInvestedValue?.toLocaleString('en-IN')}</p>
-                    <p style={{ fontSize: '18px' }}><strong>Total Portfolio Value:</strong> ₹{valuation.totalPortfolioValue?.toLocaleString('en-IN')}</p>
-                    <hr style={{ margin: '15px 0' }} />
-                    <p style={{ color: valuation.profitLoss >= 0 ? 'green' : 'red' }}>
-                      <strong>Temporary P/L:</strong> ₹{valuation.profitLoss?.toLocaleString('en-IN')}
-                    </p>
-                    <p style={{ color: valuation.percentageReturn >= 0 ? 'green' : 'red' }}>
-                      <strong>Temporary Return:</strong> {valuation.percentageReturn?.toFixed(2)}%
-                    </p>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                      gap: '1rem',
+                      padding: '1rem',
+                      background: 'rgba(15, 23, 42, 0.7)',
+                      borderRadius: '8px'
+                    }}>
+                      <div>
+                        <span className="bmc-stat-label">Liquid Cash</span>
+                        <div className="col-mono" style={{ fontSize: '1.15rem' }}>
+                          ₹{valuation.cash?.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="bmc-stat-label">Total Invested</span>
+                        <div className="col-mono" style={{ fontSize: '1.15rem' }}>
+                          ₹{valuation.totalInvestedValue?.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="bmc-stat-label">Total Portfolio Value</span>
+                        <div className="col-mono" style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--accent-electric)' }}>
+                          ₹{valuation.totalPortfolioValue?.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="bmc-stat-label">Temporary P/L & Return</span>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem' }}>
+                          <span className={`badge ${valuation.profitLoss >= 0 ? 'badge-gain' : 'badge-loss'}`}>
+                            {valuation.profitLoss >= 0 ? '+' : ''}₹{valuation.profitLoss?.toLocaleString('en-IN')}
+                          </span>
+                          <span className={`badge ${valuation.percentageReturn >= 0 ? 'badge-gain' : 'badge-loss'}`}>
+                            {valuation.percentageReturn >= 0 ? '+' : ''}{valuation.percentageReturn?.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
 
-              <div>
-                <h4>Round History</h4>
-                {historyError && <div style={{ color: 'red' }}>{historyError}</div>}
+              {/* Historical Snapshots Table */}
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.65)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.25rem'
+              }}>
+                <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  Round-by-Round Snapshots History
+                </h4>
+
+                {historyError && (
+                  <div className="alert alert-error">
+                    <span>{historyError}</span>
+                  </div>
+                )}
                 {historyLoading ? (
-                  <p>Loading history...</p>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading historical snapshots...</div>
                 ) : history.length === 0 ? (
-                  <p>No completed rounds.</p>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No completed round snapshots for this team.</div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '2px solid #ccc' }}>
-                        <th style={{ padding: '8px' }}>Round</th>
-                        <th style={{ padding: '8px' }}>Invested Value (₹)</th>
-                        <th style={{ padding: '8px' }}>Cash (₹)</th>
-                        <th style={{ padding: '8px' }}>Total Value (₹)</th>
-                        <th style={{ padding: '8px' }}>P/L (₹)</th>
-                        <th style={{ padding: '8px' }}>Return %</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {history.map(snap => (
-                        <tr key={snap.round} style={{ borderBottom: '1px solid #eee' }}>
-                          <td style={{ padding: '8px' }}>{snap.round}</td>
-                          <td style={{ padding: '8px' }}>
-                            {snap.round === 0 ? '—' : snap.investedValue?.toLocaleString('en-IN') || '0'}
-                          </td>
-                          <td style={{ padding: '8px' }}>{snap.cash?.toLocaleString('en-IN') || '0'}</td>
-                          <td style={{ padding: '8px' }}>
-                            {snap.round === 0 ? '—' : snap.totalPortfolioValue?.toLocaleString('en-IN') || '0'}
-                          </td>
-                          <td style={{ padding: '8px', color: snap.round === 0 ? 'inherit' : (snap.profitLoss >= 0 ? 'green' : 'red') }}>
-                            {snap.round === 0 ? '—' : snap.profitLoss?.toLocaleString('en-IN') || '0'}
-                          </td>
-                          <td style={{ padding: '8px', color: snap.round === 0 ? 'inherit' : (snap.returnPercentage >= 0 ? 'green' : 'red') }}>
-                            {snap.round === 0 ? '—' : `${snap.returnPercentage?.toFixed(2)}%`}
-                          </td>
+                  <div className="table-wrapper">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Round</th>
+                          <th style={{ textAlign: 'right' }}>Invested Value (₹)</th>
+                          <th style={{ textAlign: 'right' }}>Cash (₹)</th>
+                          <th style={{ textAlign: 'right' }}>Total Value (₹)</th>
+                          <th style={{ textAlign: 'right' }}>P/L (₹)</th>
+                          <th style={{ textAlign: 'right' }}>Return %</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {history.map(snap => {
+                          const isRoundZero = snap.round === 0;
+                          const isGain = (snap.profitLoss || 0) >= 0;
+                          const isReturnGain = (snap.returnPercentage || 0) >= 0;
+                          return (
+                            <tr key={snap.round}>
+                              <td>
+                                <span className="badge badge-setup">
+                                  Round {snap.round}
+                                </span>
+                              </td>
+                              <td className="col-mono" style={{ textAlign: 'right' }}>
+                                {isRoundZero ? '—' : `₹${snap.investedValue?.toLocaleString('en-IN') || '0'}`}
+                              </td>
+                              <td className="col-mono" style={{ textAlign: 'right' }}>
+                                ₹{snap.cash?.toLocaleString('en-IN') || '0'}
+                              </td>
+                              <td className="col-mono" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                {isRoundZero ? '—' : `₹${snap.totalPortfolioValue?.toLocaleString('en-IN') || '0'}`}
+                              </td>
+                              <td style={{ textAlign: 'right' }}>
+                                {isRoundZero ? '—' : (
+                                  <span className={`badge ${isGain ? 'badge-gain' : 'badge-loss'}`}>
+                                    {isGain ? '+' : ''}₹{snap.profitLoss?.toLocaleString('en-IN') || '0'}
+                                  </span>
+                                )}
+                              </td>
+                              <td style={{ textAlign: 'right' }}>
+                                {isRoundZero ? '—' : (
+                                  <span className={`badge ${isReturnGain ? 'badge-gain' : 'badge-loss'}`}>
+                                    {isReturnGain ? '+' : ''}{snap.returnPercentage?.toFixed(2)}%
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
-            </>
+            </div>
           ) : (
-            <p>Portfolio not initialized</p>
+            <div className="alert alert-warning">
+              <span>This squad does not have an active portfolio initialized yet. Click &quot;Initialize Portfolios&quot; above to initialize all teams.</span>
+            </div>
           )}
         </div>
       )}

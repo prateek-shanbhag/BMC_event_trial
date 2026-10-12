@@ -126,14 +126,25 @@ function ParticipantAllocation({ simulationState }) {
   };
 
   if (loading) {
-    return <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px', gridColumn: '1 / -1' }}>Loading allocation...</div>;
+    return (
+      <div className="bmc-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span className="badge-dot" style={{ background: 'var(--accent-electric)', animation: 'pulse-dot 1.2s infinite' }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Loading initial allocation workbench...</span>
+        </div>
+      </div>
+    );
   }
 
   if (error === 'You are not assigned to a team.') {
     return (
-      <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px', gridColumn: '1 / -1' }}>
-        <h3>Initial Portfolio Allocation</h3>
-        <p style={{ color: 'red' }}>You are not assigned to a team yet.</p>
+      <div className="bmc-card">
+        <div className="bmc-card-header">
+          <h3 className="bmc-card-title">Initial Portfolio Allocation</h3>
+        </div>
+        <div className="alert alert-warning">
+          <span>You are not assigned to a team yet. Please wait for an administrator to assign your squad.</span>
+        </div>
       </div>
     );
   }
@@ -146,75 +157,175 @@ function ParticipantAllocation({ simulationState }) {
   const isSubmitted = allocation?.status === 'SUBMITTED';
   const totalAllocated = Object.values(inputs).reduce((sum, val) => sum + (val || 0), 0);
   const unallocated = 1000000 - totalAllocated;
+  const percentAllocated = Math.min(100, Math.max(0, (totalAllocated / 1000000) * 100));
+  const isOverBudget = unallocated < 0;
 
   return (
-    <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px', gridColumn: '1 / -1' }}>
-      <h3>Initial Portfolio Allocation</h3>
-      {error && <div style={{ backgroundColor: '#ffebee', color: '#c62828', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>{error}</div>}
-      {success && <div style={{ backgroundColor: '#e8f5e9', color: '#2e7d32', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>{success}</div>}
-      
-      {isSubmitted && (
-        <div style={{ backgroundColor: '#e3f2fd', color: '#1565c0', padding: '10px', borderRadius: '4px', marginBottom: '15px', fontWeight: 'bold' }}>
-          Allocation Status: SUBMITTED<br/>
-          Your initial allocation has been submitted and is locked.
+    <div className="bmc-card">
+      <div className="bmc-card-header">
+        <div>
+          <h3 className="bmc-card-title">
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '26px',
+              height: '26px',
+              borderRadius: '6px',
+              background: 'rgba(245, 158, 11, 0.15)',
+              color: 'var(--warning-light)',
+              fontSize: '0.85rem'
+            }}>
+              ⚖️
+            </span>
+            Initial Portfolio Allocation (Round 0)
+          </h3>
+          <p className="bmc-card-subtitle">
+            Deploy starting capital of ₹10,00,000 for {teamName || 'your squad'} across the 7 asset classes before the round window closes.
+          </p>
         </div>
-      )}
-
-      {allocation && (
-        <div style={{ marginBottom: '20px' }}>
-          {teamName && <p><strong>Team:</strong> {teamName}</p>}
-          <p><strong>Starting Capital:</strong> ₹10,00,000</p>
-        </div>
-      )}
-
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#f5f5f5', textAlign: 'left' }}>
-            <th style={{ padding: '10px', borderBottom: '2px solid #ddd' }}>Asset Class</th>
-            <th style={{ padding: '10px', borderBottom: '2px solid #ddd' }}>Allocation (₹)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Object.entries(assetNames).map(([key, name]) => (
-            <tr key={key} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '10px' }}>{name}</td>
-              <td style={{ padding: '10px' }}>
-                <input 
-                  type="number" 
-                  min="0"
-                  step="1"
-                  value={inputs[key] === 0 ? '' : inputs[key]} 
-                  onChange={(e) => handleInputChange(key, e.target.value)}
-                  disabled={isSubmitted}
-                  style={{ padding: '6px', width: '150px', borderRadius: '4px', border: '1px solid #ccc' }}
-                  placeholder="0"
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div style={{ marginBottom: '20px', fontSize: '1.1em' }}>
-        <p><strong>Total Allocated:</strong> ₹{totalAllocated.toLocaleString('en-IN')}</p>
-        <p style={{ color: unallocated < 0 ? 'red' : 'inherit' }}>
-          <strong>Unallocated:</strong> ₹{unallocated.toLocaleString('en-IN')}
-        </p>
+        <span className={`badge ${isSubmitted ? 'badge-running' : 'badge-allocation'}`}>
+          <span className="badge-dot" />
+          {isSubmitted ? 'Status: SUBMITTED (Locked)' : 'Phase: ALLOCATION OPEN'}
+        </span>
       </div>
 
-      {!isSubmitted && (
+      {error && (
+        <div className="alert alert-error" role="alert">
+          <span><strong>Allocation Error:</strong> {error}</span>
+        </div>
+      )}
+      {success && (
+        <div className="alert alert-success" role="status">
+          <span>{success}</span>
+        </div>
+      )}
+
+      {isSubmitted && (
+        <div className="alert alert-info">
+          <span>
+            <strong>Allocation Locked:</strong> Your initial allocation of ₹{totalAllocated.toLocaleString('en-IN')} has been finalized and submitted to the trading engine.
+          </span>
+        </div>
+      )}
+
+      {/* Budget Summary Bar */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '1rem',
+        padding: '1.25rem',
+        background: 'rgba(15, 23, 42, 0.65)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: '12px',
+        marginBottom: '1.5rem'
+      }}>
         <div>
+          <span className="bmc-stat-label">Starting Capital</span>
+          <div className="bmc-stat-value" style={{ fontSize: '1.35rem' }}>₹10,00,000</div>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Initial allocation pool</span>
+        </div>
+        <div>
+          <span className="bmc-stat-label">Allocated Capital</span>
+          <div className="bmc-stat-value" style={{ fontSize: '1.35rem', color: isOverBudget ? 'var(--loss-light)' : 'var(--accent-electric)' }}>
+            ₹{totalAllocated.toLocaleString('en-IN')}
+          </div>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{percentAllocated.toFixed(1)}% of total capital</span>
+        </div>
+        <div>
+          <span className="bmc-stat-label">Remaining Unallocated (Cash)</span>
+          <div className="bmc-stat-value" style={{
+            fontSize: '1.35rem',
+            color: isOverBudget ? 'var(--loss-light)' : 'var(--gain-light)'
+          }}>
+            ₹{unallocated.toLocaleString('en-IN')}
+          </div>
+          <span style={{ fontSize: '0.75rem', color: isOverBudget ? 'var(--loss-light)' : 'var(--text-muted)' }}>
+            {isOverBudget ? 'Exceeds ₹10,00,000 limit!' : 'Kept as liquid reserve'}
+          </span>
+        </div>
+      </div>
+
+      {/* Progress Track */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+          <span>Capital Deployed</span>
+          <span>{percentAllocated.toFixed(1)}%</span>
+        </div>
+        <div className="progress-track">
+          <div 
+            className={`progress-bar ${isOverBudget ? 'progress-bar-danger' : 'progress-bar-electric'}`}
+            style={{ 
+              width: `${Math.min(100, percentAllocated)}%`,
+              backgroundColor: isOverBudget ? 'var(--loss-red)' : undefined
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Allocation Inputs Table */}
+      <div className="table-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th style={{ width: '45%' }}>Asset Class</th>
+              <th style={{ width: '35%' }}>Allocation Amount (₹)</th>
+              <th style={{ width: '20%', textAlign: 'right' }}>Weight</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(assetNames).map(([key, name]) => {
+              const val = inputs[key] || 0;
+              const weight = totalAllocated > 0 ? ((val / 1000000) * 100).toFixed(1) : '0.0';
+              return (
+                <tr key={key}>
+                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {name}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', maxWidth: '220px' }}>
+                      <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>₹</span>
+                      <input 
+                        type="number" 
+                        min="0"
+                        step="1"
+                        value={inputs[key] === 0 ? '' : inputs[key]} 
+                        onChange={(e) => handleInputChange(key, e.target.value)}
+                        disabled={isSubmitted}
+                        className="form-input form-input-mono"
+                        style={{ padding: '0.45rem 0.65rem' }}
+                        placeholder="0"
+                        aria-label={`Allocation amount for ${name}`}
+                      />
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                    {weight}%
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Action Buttons */}
+      {!isSubmitted && (
+        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <button 
+            type="button"
             onClick={handleSaveDraft}
-            style={{ padding: '8px 16px', marginRight: '10px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            className="btn btn-secondary"
           >
-            Save Draft
+            💾 Save Draft
           </button>
           <button 
+            type="button"
             onClick={handleSubmit}
-            style={{ padding: '8px 16px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            disabled={isOverBudget}
+            className="btn btn-success"
           >
-            Submit Final Allocation
+            🚀 Submit Final Allocation
           </button>
         </div>
       )}

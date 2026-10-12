@@ -20,8 +20,14 @@ function RootRedirect() {
   } else {
     // If role hasn't loaded yet or is invalid, just show loading or fallback
     return (
-      <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif' }}>
-        <p>Loading your profile...</p>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="bmc-card" style={{ padding: '2rem 3rem', textAlign: 'center' }}>
+          <div className="bmc-logo-mark" style={{ margin: '0 auto 1rem auto' }}>BMC</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+            <span className="badge-dot" style={{ background: 'var(--accent-electric)', animation: 'pulse-dot 1.2s infinite' }} />
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading user workspace...</span>
+          </div>
+        </div>
       </div>
     );
   }

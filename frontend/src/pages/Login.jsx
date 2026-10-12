@@ -20,10 +20,17 @@ function Login() {
 
   if (!firebaseReady) {
     return (
-      <div style={{ textAlign: 'center', marginTop: '100px', fontFamily: 'sans-serif' }}>
-        <h1>BMC Investment Simulator</h1>
-        <p style={{ color: '#d32f2f', fontWeight: 'bold' }}>Firebase is not configured.</p>
-        <p style={{ color: '#555' }}>Please add your Firebase credentials to <code>frontend/.env</code></p>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+        <div className="bmc-card" style={{ maxWidth: '440px', width: '100%', textAlign: 'center' }}>
+          <div className="bmc-logo-mark" style={{ margin: '0 auto 1rem auto' }}>BMC</div>
+          <h2 style={{ marginBottom: '0.5rem' }}>BMC Investment Simulator</h2>
+          <div className="alert alert-error" style={{ justifyContent: 'center' }}>
+            <span>Firebase configuration is missing or invalid.</span>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            Please verify your credentials in <code>frontend/.env</code> to proceed.
+          </p>
+        </div>
       </div>
     );
   }
@@ -41,7 +48,7 @@ function Login() {
       } else if (err.code === 'auth/user-disabled') {
         setError('This account has been disabled.');
       } else if (err.code === 'auth/network-request-failed') {
-        setError('Network error. Please try again.');
+        setError('Network error. Please check your connection.');
       } else {
         setError('Failed to sign in. Please try again later.');
       }
@@ -50,52 +57,119 @@ function Login() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '100px', fontFamily: 'sans-serif' }}>
-      <div style={{ border: '1px solid #ddd', padding: '30px', borderRadius: '8px', width: '300px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ textAlign: 'center', margin: '0 0 10px 0', fontSize: '20px' }}>BMC Investment Simulator</h2>
-        <p style={{ textAlign: 'center', color: '#555', marginBottom: '20px', fontSize: '14px' }}>Sign in to continue</p>
-        
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Email</label>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1.5rem',
+      position: 'relative'
+    }}>
+      <div className="bmc-card animate-fade-in" style={{
+        maxWidth: '420px',
+        width: '100%',
+        padding: '2.25rem 2rem',
+        boxShadow: 'var(--shadow-lg), 0 0 40px -10px rgba(56, 189, 248, 0.15)',
+        border: '1px solid rgba(148, 163, 184, 0.18)'
+      }}>
+        {/* Brand Header */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div className="bmc-logo-mark" style={{
+            margin: '0 auto 1rem auto',
+            width: '46px',
+            height: '46px',
+            fontSize: '1.35rem'
+          }}>
+            BMC
+          </div>
+          <h2 style={{ fontSize: '1.375rem', fontWeight: 700, margin: '0 0 0.35rem 0' }}>
+            Investment Simulation
+          </h2>
+          <div style={{
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            color: 'var(--accent-electric)',
+            textTransform: 'uppercase'
+          }}>
+            Trading Terminal Access
+          </div>
+        </div>
+
+        {/* Alerts */}
+        {error && (
+          <div className="alert alert-error" role="alert">
+            <span style={{ fontWeight: 600 }}>Error:</span> {error}
+          </div>
+        )}
+        {authError && (
+          <div className="alert alert-error" role="alert">
+            <span style={{ fontWeight: 600 }}>Auth:</span> {authError}
+          </div>
+        )}
+
+        {/* Sign In Form */}
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" htmlFor="email-input">
+              Account Email
+            </label>
             <input 
+              id="email-input"
+              className="form-input"
               type="email" 
               value={email} 
               onChange={(e) => setEmail(e.target.value)} 
+              placeholder="name@organization.com"
               required 
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px' }}
+              autoComplete="email"
             />
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Password</label>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" htmlFor="password-input">
+              Password
+            </label>
             <input 
+              id="password-input"
+              className="form-input"
               type="password" 
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
+              placeholder="••••••••••••"
               required 
-              style={{ width: '100%', padding: '8px', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px' }}
+              autoComplete="current-password"
             />
           </div>
           
           <button 
             type="submit" 
             disabled={isLoggingIn} 
-            style={{ 
-              padding: '10px', 
-              marginTop: '10px', 
-              backgroundColor: isLoggingIn ? '#a0c4ff' : '#0070f3', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '4px', 
-              cursor: isLoggingIn ? 'not-allowed' : 'pointer',
-              fontWeight: 'bold'
-            }}>
-            {isLoggingIn ? 'Signing In...' : 'Sign In'}
+            className="btn btn-primary btn-lg"
+            style={{ width: '100%', marginTop: '0.5rem' }}
+          >
+            {isLoggingIn ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span className="badge-dot" style={{ background: '#fff', animation: 'pulse-dot 1s infinite' }} />
+                Authenticating...
+              </span>
+            ) : (
+              'Sign In to Terminal'
+            )}
           </button>
         </form>
 
-        {error && <div style={{ color: '#d32f2f', marginTop: '15px', textAlign: 'center', fontSize: '14px' }}>{error}</div>}
-        {authError && <div style={{ color: '#d32f2f', marginTop: '15px', textAlign: 'center', fontSize: '14px', fontWeight: 'bold' }}>{authError}</div>}
+        {/* Terminal Info Footer */}
+        <div style={{
+          marginTop: '2rem',
+          paddingTop: '1.25rem',
+          borderTop: '1px solid var(--border-subtle)',
+          textAlign: 'center',
+          fontSize: '0.75rem',
+          color: 'var(--text-muted)'
+        }}>
+          Authorized BMC Event Access Only &bull; Round Data Synced
+        </div>
       </div>
     </div>
   );
