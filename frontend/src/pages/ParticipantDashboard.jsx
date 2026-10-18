@@ -4,6 +4,7 @@ import TeamView from '../components/TeamView';
 import ParticipantAllocation from '../components/ParticipantAllocation';
 import ParticipantPortfolio from '../components/ParticipantPortfolio';
 import Leaderboard from '../components/Leaderboard';
+import ParticipantNews from '../components/ParticipantNews';
 
 function ParticipantDashboard() {
   const { currentUser, logout } = useAuth();
@@ -11,33 +12,35 @@ function ParticipantDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('portfolio');
 
-  useEffect(() => {
-    const fetchSimulationState = async () => {
-      try {
-        const token = await currentUser.getIdToken();
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/participant/simulation-state`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setSimulationState(data);
-          // If Round 0 and ALLOCATION, auto-focus allocation tab
-          if (data.currentRound === 0 && data.status === 'ALLOCATION') {
-            setActiveTab('allocation');
-          }
+  const fetchSimulationState = async () => {
+    try {
+      const token = await currentUser.getIdToken();
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/participant/simulation-state`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSimulationState(data);
+        // If allocation or reallocation is open, default to allocation tab on initial load
+        if ((data.currentRound === 0 && (data.status === 'INITIAL_ALLOCATION_OPEN' || data.status === 'ALLOCATION')) || data.status === 'REALLOCATION_OPEN') {
+          // keep existing tab if user already selected, otherwise default
         }
-      } catch (error) {
-        console.error('Error fetching simulation state:', error);
-      } finally {
-        setLoading(false);
       }
-    };
-    
+    } catch (error) {
+      console.error('Error fetching simulation state:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchSimulationState();
   }, [currentUser]);
 
-  const isAllocationRound = simulationState?.currentRound === 0 && simulationState?.status === 'ALLOCATION';
+  const isReallocationOpen = simulationState?.currentRound === 0
+    ? (simulationState?.status === 'INITIAL_ALLOCATION_OPEN' || simulationState?.status === 'ALLOCATION')
+    : (simulationState?.status === 'REALLOCATION_OPEN');
 
   const getStatusBadge = () => {
     if (loading) {
@@ -48,36 +51,70 @@ function ParticipantDashboard() {
         </span>
       );
     }
-    if (simulationState?.status === 'FINISHED') {
-      return (
-        <span className="badge badge-finished">
-          <span className="badge-dot" />
-          Finished
-        </span>
-      );
+    const status = simulationState?.status;
+    const round = simulationState?.currentRound ?? 0;
+
+    switch (status) {
+      case 'SETUP':
+        return (
+          <span className="badge badge-setup">
+            <span className="badge-dot" />
+            Round 0: Setup
+          </span>
+        );
+      case 'INITIAL_ALLOCATION_OPEN':
+      case 'ALLOCATION':
+        return (
+          <span className="badge badge-allocation">
+            <span className="badge-dot" />
+            Round 0: Allocation Open
+          </span>
+        );
+      case 'ROUND_PREPARATION':
+      case 'NEWS_PUBLISHED':
+        return (
+          <span className="badge badge-setup">
+            <span className="badge-dot" />
+            Round {round}: Preparing Round
+          </span>
+        );
+      case 'REALLOCATION_OPEN':
+        return (
+          <span className="badge badge-running">
+            <span className="badge-dot" />
+            Round {round}: Reallocation Open
+          </span>
+        );
+      case 'REALLOCATION_CLOSED':
+      case 'EVALUATING':
+        return (
+          <span className="badge badge-allocation">
+            <span className="badge-dot" />
+            Round {round}: Evaluating
+          </span>
+        );
+      case 'RESULTS_PUBLISHED':
+        return (
+          <span className="badge badge-finished" style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--gain-light)' }}>
+            <span className="badge-dot" style={{ background: 'var(--gain-light)' }} />
+            Round {round}: Results Published
+          </span>
+        );
+      case 'FINISHED':
+        return (
+          <span className="badge badge-finished">
+            <span className="badge-dot" />
+            Simulation Concluded
+          </span>
+        );
+      default:
+        return (
+          <span className="badge badge-setup">
+            <span className="badge-dot" />
+            {status || 'Connecting'}
+          </span>
+        );
     }
-    if (simulationState?.status === 'RUNNING') {
-      return (
-        <span className="badge badge-running">
-          <span className="badge-dot" />
-          Live Round {simulationState?.currentRound} / {simulationState?.totalRounds || 20}
-        </span>
-      );
-    }
-    if (simulationState?.status === 'ALLOCATION') {
-      return (
-        <span className="badge badge-allocation">
-          <span className="badge-dot" />
-          Round 0: Allocation Open
-        </span>
-      );
-    }
-    return (
-      <span className="badge badge-setup">
-        <span className="badge-dot" />
-        {simulationState?.status || 'Setup'}
-      </span>
-    );
   };
 
   const currentRoundNum = simulationState?.currentRound || 0;
@@ -126,18 +163,22 @@ function ParticipantDashboard() {
               {loading ? (
                 'Loading simulation status...'
               ) : simulationState?.status === 'FINISHED' ? (
-                'Simulation Concluded'
+                'Simulation Concluded — Final Standings Live'
               ) : simulationState?.currentRound === 0 ? (
                 'Round 0: Initial Portfolio Allocation'
               ) : (
-                `Active Trading: Round ${simulationState?.currentRound} of ${totalRounds}`
+                `Active Tournament: Round ${simulationState?.currentRound} of ${totalRounds}`
               )}
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
               {simulationState?.status === 'FINISHED' 
-                ? 'All rounds completed. Official final results are published below.'
-                : simulationState?.status === 'ALLOCATION'
-                ? 'Set up your starting capital allocation across the 7 available asset classes.'
+                ? 'All rounds completed. Official final results and leaderboard are published below.'
+                : simulationState?.status === 'REALLOCATION_OPEN'
+                ? `Round ${currentRoundNum} Reallocation is OPEN. Rebalance your portfolio holdings across assets and cash.`
+                : simulationState?.status === 'INITIAL_ALLOCATION_OPEN' || simulationState?.status === 'ALLOCATION'
+                ? 'Deploy starting capital of ₹10,00,000 across the 7 available asset classes.'
+                : simulationState?.status === 'RESULTS_PUBLISHED'
+                ? `Round ${currentRoundNum} results published. Check your updated portfolio valuation and historical snapshots.`
                 : 'Round values and historical snapshots are updated in real-time as the simulation advances.'}
             </p>
           </div>
@@ -176,16 +217,24 @@ function ParticipantDashboard() {
           💼 Portfolio & Valuation
         </button>
 
-        {isAllocationRound && (
-          <button 
-            type="button"
-            onClick={() => setActiveTab('allocation')} 
-            className={`bmc-tab-btn ${activeTab === 'allocation' ? 'active' : ''}`}
-          >
-            ⚖️ Initial Allocation
-            <span className="badge-dot" style={{ background: 'var(--warning-amber)' }} />
-          </button>
-        )}
+        <button 
+          type="button"
+          onClick={() => setActiveTab('allocation')} 
+          className={`bmc-tab-btn ${activeTab === 'allocation' ? 'active' : ''}`}
+        >
+          ⚖️ {currentRoundNum === 0 ? 'Initial Allocation' : `Reallocation (Round ${currentRoundNum})`}
+          {isReallocationOpen && (
+            <span className="badge-dot" style={{ background: 'var(--accent-electric)' }} />
+          )}
+        </button>
+
+        <button 
+          type="button"
+          onClick={() => setActiveTab('news')} 
+          className={`bmc-tab-btn ${activeTab === 'news' ? 'active' : ''}`}
+        >
+          📰 Event Broadcast
+        </button>
 
         <button 
           type="button"
@@ -205,61 +254,28 @@ function ParticipantDashboard() {
         {/* Dynamic Main View */}
         {activeTab === 'portfolio' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Show allocation workbench if in allocation round even within portfolio tab */}
-            {isAllocationRound && (
+            {/* If reallocation is open, display reallocation workbench prominently */}
+            {isReallocationOpen && (
               <ParticipantAllocation simulationState={simulationState} />
             )}
             
             <ParticipantPortfolio simulationState={simulationState} />
 
             {/* Event News & Broadcast Panel */}
-            <div className="bmc-card">
-              <div className="bmc-card-header">
-                <div>
-                  <h3 className="bmc-card-title">
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: '6px',
-                      background: 'rgba(56, 189, 248, 0.15)',
-                      color: 'var(--accent-electric)',
-                      fontSize: '0.85rem'
-                    }}>
-                      📡
-                    </span>
-                    Market Wire & Event Intel
-                  </h3>
-                  <p className="bmc-card-subtitle">Real-time macro announcements and round bulletins</p>
-                </div>
-                <span className="badge badge-running">
-                  <span className="badge-dot" />
-                  Live Wire
-                </span>
-              </div>
-              <div style={{
-                padding: '1.25rem',
-                background: 'rgba(15, 23, 42, 0.6)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '10px',
-                color: 'var(--text-secondary)',
-                fontSize: '0.85rem',
-                lineHeight: 1.6
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-electric)', fontWeight: 600, marginBottom: '0.35rem' }}>
-                  <span>📢 Official Event Broadcast</span>
-                </div>
-                Market conditions and asset value multipliers fluctuate dynamically based on macroeconomic releases each round.
-                Monitor your portfolio valuations closely across rounds to track asset class growth trajectories.
-              </div>
-            </div>
+            <ParticipantNews simulationState={simulationState} />
           </div>
         )}
 
         {activeTab === 'allocation' && (
-          <ParticipantAllocation simulationState={simulationState} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <ParticipantAllocation simulationState={simulationState} />
+          </div>
+        )}
+
+        {activeTab === 'news' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <ParticipantNews simulationState={simulationState} />
+          </div>
         )}
 
         {activeTab === 'leaderboard' && (

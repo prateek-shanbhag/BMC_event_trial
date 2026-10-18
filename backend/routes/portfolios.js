@@ -4,6 +4,11 @@ const { db } = require('../config/firebaseAdmin');
 const adminRouter = express.Router();
 const participantRouter = express.Router();
 const valuationService = require('../services/valuationService');
+const { 
+  CANONICAL_ASSET_CLASSES, 
+  normalizeHoldingsMap, 
+  normalizeAssetValuesMap 
+} = valuationService;
 
 // ADMIN: Get all portfolios
 adminRouter.get('/', async (req, res) => {
@@ -20,6 +25,7 @@ adminRouter.get('/', async (req, res) => {
     portfoliosSnapshot.forEach(doc => {
       const data = doc.data();
       data.teamName = teamMap[data.teamId] || data.teamId;
+      data.holdings = normalizeHoldingsMap(data.holdings);
       portfolios.push(data);
     });
     res.status(200).json({ portfolios });
@@ -39,33 +45,36 @@ adminRouter.get('/:teamId', async (req, res) => {
       return res.status(404).json({ error: 'Portfolio not found for this team' });
     }
     
-    res.status(200).json({ portfolio: portfolioDoc.data() });
+    const data = portfolioDoc.data();
+    data.holdings = normalizeHoldingsMap(data.holdings);
+    res.status(200).json({ portfolio: data });
   } catch (error) {
     console.error('Error fetching team portfolio:', error);
     res.status(500).json({ error: 'Failed to fetch team portfolio' });
   }
 });
 
-// ADMIN: Initialize portfolios from SUBMITTED Round 0 allocations
+// ADMIN: Initialize portfolios from Round 0 allocations
 adminRouter.post('/initialize', async (req, res) => {
   try {
     const initialized = [];
     const alreadyInitialized = [];
     const skipped = [];
 
-    // Run within a transaction to ensure atomicity for each team's portfolio initialization
-    // Wait, multiple teams might exceed transaction limits if there are many, but since it's a batch/transaction 
-    // for each team separately or altogether? Let's process each team in its own transaction or batch to be safe.
-    
-    // First, find all submitted Round 0 allocations
+    // Find all teams and Round 0 allocations
+    const teamsSnapshot = await db.collection('teams').get();
     const allocationsSnapshot = await db.collection('allocations')
       .where('round', '==', 0)
-      .where('status', '==', 'SUBMITTED')
       .get();
       
-    const processPromises = allocationsSnapshot.docs.map(async (allocationDoc) => {
-      const allocation = allocationDoc.data();
-      const teamId = allocation.teamId;
+    const allocationsByTeam = {};
+    allocationsSnapshot.forEach(doc => {
+      allocationsByTeam[doc.data().teamId] = doc.data();
+    });
+
+    const processPromises = teamsSnapshot.docs.map(async (teamDoc) => {
+      const teamId = teamDoc.id;
+      const allocation = allocationsByTeam[teamId];
       const portfolioRef = db.collection('portfolios').doc(`team_${teamId}`);
       const snapshotRef = db.collection('portfolioSnapshots').doc(`team_${teamId}_round_0`);
       
@@ -78,11 +87,19 @@ adminRouter.post('/initialize', async (req, res) => {
             return;
           }
           
-          const holdings = allocation.allocations;
-          const totalInvested = allocation.allocatedAmount;
-          const cash = 1000000 - totalInvested;
+          const isSubmitted = allocation && allocation.status === 'SUBMITTED';
+          let holdings = {};
+          CANONICAL_ASSET_CLASSES.forEach(ac => { holdings[ac] = 0; });
+          let totalInvested = 0;
+          let cash = 1000000;
+
+          if (isSubmitted && allocation.allocations) {
+            holdings = normalizeHoldingsMap(allocation.allocations);
+            totalInvested = allocation.allocatedAmount || 0;
+            cash = 1000000 - totalInvested;
+          }
           
-          const now = new Date().toISOString(); // or use admin.firestore.FieldValue.serverTimestamp() but we don't import admin here directly easily, standard JS date is fine for now as we did elsewhere.
+          const now = new Date().toISOString();
           
           const portfolioData = {
             id: `team_${teamId}`,
@@ -91,6 +108,7 @@ adminRouter.post('/initialize', async (req, res) => {
             holdings,
             totalInvested,
             cash,
+            totalPortfolioValue: 1000000,
             status: 'ACTIVE',
             createdAt: now,
             updatedAt: now
@@ -102,6 +120,10 @@ adminRouter.post('/initialize', async (req, res) => {
             round: 0,
             holdings,
             cash,
+            investedValue: totalInvested,
+            totalPortfolioValue: 1000000,
+            profitLoss: 0,
+            returnPercentage: 0,
             createdAt: now
           };
           
@@ -116,6 +138,24 @@ adminRouter.post('/initialize', async (req, res) => {
     });
 
     await Promise.all(processPromises);
+
+    // If simulation state is INITIAL_ALLOCATION_OPEN, advance to Round 1 ROUND_PREPARATION
+    try {
+      const simRef = db.collection('simulation').doc('config');
+      const simDoc = await simRef.get();
+      if (simDoc.exists) {
+        const simData = simDoc.data();
+        if (simData.currentRound === 0 && (simData.status === 'INITIAL_ALLOCATION_OPEN' || simData.status === 'ALLOCATION')) {
+          await simRef.update({
+            currentRound: 1,
+            status: 'ROUND_PREPARATION',
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+    } catch (simErr) {
+      console.warn('Could not advance simulation state during portfolio initialize:', simErr.message);
+    }
 
     res.status(200).json({
       initialized,
@@ -149,15 +189,16 @@ adminRouter.get('/:teamId/valuation/:round', async (req, res) => {
       return res.status(409).json({ error: 'Asset values are not configured for this round.' });
     }
 
-    const assetValues = {};
+    const rawValues = {};
     assetValuesSnapshot.forEach(doc => {
       const data = doc.data();
-      assetValues[data.assetClassId] = data.value;
+      rawValues[data.assetClassId] = data.value;
     });
 
     const portfolio = portfolioDoc.data();
+    portfolio.holdings = normalizeHoldingsMap(portfolio.holdings);
     
-    const valuation = valuationService.calculatePortfolioValuation(teamId, roundNumber, portfolio, assetValues);
+    const valuation = valuationService.calculatePortfolioValuation(teamId, roundNumber, portfolio, rawValues);
     
     res.status(200).json(valuation);
   } catch (error) {
@@ -186,7 +227,9 @@ adminRouter.get('/:teamId/history', async (req, res) => {
       
     const history = [];
     snapshotDocs.forEach(doc => {
-      history.push(doc.data());
+      const snap = doc.data();
+      snap.holdings = normalizeHoldingsMap(snap.holdings);
+      history.push(snap);
     });
     
     // Sort in memory by round ascending
@@ -213,7 +256,9 @@ participantRouter.get('/', async (req, res) => {
       return res.status(404).json({ error: 'Portfolio has not been initialized yet.' });
     }
     
-    res.status(200).json(portfolioDoc.data());
+    const data = portfolioDoc.data();
+    data.holdings = normalizeHoldingsMap(data.holdings);
+    res.status(200).json(data);
   } catch (error) {
     console.error('Error fetching participant portfolio:', error);
     res.status(500).json({ error: 'Failed to fetch portfolio' });
@@ -245,15 +290,16 @@ participantRouter.get('/valuation/:round', async (req, res) => {
       return res.status(409).json({ error: 'Asset values are not configured for this round.' });
     }
 
-    const assetValues = {};
+    const rawValues = {};
     assetValuesSnapshot.forEach(doc => {
       const data = doc.data();
-      assetValues[data.assetClassId] = data.value;
+      rawValues[data.assetClassId] = data.value;
     });
 
     const portfolio = portfolioDoc.data();
+    portfolio.holdings = normalizeHoldingsMap(portfolio.holdings);
     
-    const valuation = valuationService.calculatePortfolioValuation(teamId, roundNumber, portfolio, assetValues);
+    const valuation = valuationService.calculatePortfolioValuation(teamId, roundNumber, portfolio, rawValues);
     
     res.status(200).json(valuation);
   } catch (error) {
@@ -280,7 +326,9 @@ participantRouter.get('/history', async (req, res) => {
       
     const history = [];
     snapshotDocs.forEach(doc => {
-      history.push(doc.data());
+      const snap = doc.data();
+      snap.holdings = normalizeHoldingsMap(snap.holdings);
+      history.push(snap);
     });
     
     // Sort in memory by round ascending

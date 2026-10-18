@@ -61,7 +61,7 @@ function SimulationControl() {
   };
 
   const handleReset = () => {
-    if (window.confirm("Are you sure you want to completely RESET the simulation lifecycle back to SETUP? This does NOT delete teams, users, or news, but starts the simulation process over from Round 0.")) {
+    if (window.confirm("Are you sure you want to completely RESET the simulation lifecycle back to SETUP? This does NOT delete teams, users, or news, but resets the simulation state machine to Round 0 SETUP.")) {
       handleAction('reset', 'Simulation reset to SETUP successfully.');
     }
   };
@@ -87,10 +87,41 @@ function SimulationControl() {
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case 'SETUP': return 'badge-setup';
+      case 'INITIAL_ALLOCATION_OPEN':
       case 'ALLOCATION': return 'badge-allocation';
-      case 'RUNNING': return 'badge-running';
+      case 'ROUND_PREPARATION':
+      case 'NEWS_PUBLISHED': return 'badge-setup';
+      case 'REALLOCATION_OPEN': return 'badge-running';
+      case 'REALLOCATION_CLOSED': return 'badge-setup';
+      case 'RESULTS_PUBLISHED': return 'badge-success';
       case 'FINISHED': return 'badge-finished';
       default: return 'badge-setup';
+    }
+  };
+
+  const getExplanation = () => {
+    switch (config.status) {
+      case 'SETUP':
+        return 'Simulation is in initial setup. Click Start Initial Allocation to allow participants to allocate their ₹10,00,000 starting capital.';
+      case 'INITIAL_ALLOCATION_OPEN':
+      case 'ALLOCATION':
+        return 'Initial allocation is OPEN for Round 0. Participants can allocate starting capital. Click Initialize Portfolios to establish starting portfolios and advance to Round 1 Preparation.';
+      case 'ROUND_PREPARATION':
+      case 'NEWS_PUBLISHED':
+        return `Round ${config.currentRound} preparation. Verify all 7 asset values and ensure at least one draft news item exists, then click Publish News & Open Reallocation.`;
+      case 'REALLOCATION_OPEN':
+        return `Round ${config.currentRound} portfolio reallocation is OPEN. Participants are rebalancing. Click Close Reallocation when time is up.`;
+      case 'REALLOCATION_CLOSED':
+        return `Round ${config.currentRound} reallocation is CLOSED. Click Evaluate & Publish Results to settle portfolios against current asset values.`;
+      case 'RESULTS_PUBLISHED':
+        if (config.currentRound < config.totalRounds) {
+          return `Round ${config.currentRound} results are published. Snapshots are recorded. Click Prepare Next Round to advance to Round ${config.currentRound + 1}.`;
+        }
+        return 'Round 20 results are published. Click Finish Simulation to conclude the tournament and unlock the official leaderboard.';
+      case 'FINISHED':
+        return 'The simulation is officially concluded. All 20 rounds have been settled. The tournament leaderboard is now live for all participants and administrators.';
+      default:
+        return 'Authoritative state managed by backend engine.';
     }
   };
 
@@ -115,7 +146,7 @@ function SimulationControl() {
             Simulation Control & Round Engine
           </h3>
           <p className="bmc-card-subtitle">
-            Manage stage transitions, progression from Round 0 to Round 20, and event finalization
+            Manage strict stage transitions, atomic news-and-reallocation release, portfolio settlement, and tournament conclusion
           </p>
         </div>
         <span className={`badge ${getStatusBadgeClass(config.status)}`}>
@@ -149,10 +180,10 @@ function SimulationControl() {
 
         <div className="bmc-stat-card">
           <span className="bmc-stat-label">Lifecycle Stage</span>
-          <div className="bmc-stat-value" style={{ fontSize: '1.35rem' }}>
+          <div className="bmc-stat-value" style={{ fontSize: '1.15rem' }}>
             {config.status}
           </div>
-          <span className="bmc-stat-meta">Authoritative state</span>
+          <span className="bmc-stat-meta">Backend authoritative</span>
         </div>
 
         <div className="bmc-stat-card">
@@ -160,16 +191,30 @@ function SimulationControl() {
           <div className="bmc-stat-value">
             ₹{config.startingCapital?.toLocaleString('en-IN')}
           </div>
-          <span className="bmc-stat-meta">Per team allotment</span>
+          <span className="bmc-stat-meta">Per team baseline</span>
         </div>
 
         <div className="bmc-stat-card">
-          <span className="bmc-stat-label">Allocation Window</span>
-          <div className="bmc-stat-value">
-            {config.allocationWindowSeconds}s
+          <span className="bmc-stat-label">Reallocation Mode</span>
+          <div className="bmc-stat-value" style={{ fontSize: '1.1rem', color: config.status === 'REALLOCATION_OPEN' ? 'var(--gain-light)' : 'var(--text-muted)' }}>
+            {config.status === 'REALLOCATION_OPEN' ? 'OPEN' : config.status === 'INITIAL_ALLOCATION_OPEN' ? 'INITIAL OPEN' : 'LOCKED'}
           </div>
-          <span className="bmc-stat-meta">Timer threshold</span>
+          <span className="bmc-stat-meta">Participant trading status</span>
         </div>
+      </div>
+
+      {/* Human-Readable Explanation Banner */}
+      <div style={{
+        padding: '0.85rem 1.15rem',
+        background: 'rgba(30, 41, 59, 0.6)',
+        borderLeft: '4px solid var(--accent-electric)',
+        borderRadius: '8px',
+        marginBottom: '1.25rem',
+        fontSize: '0.875rem',
+        color: 'var(--text-secondary)'
+      }}>
+        <strong style={{ color: 'var(--text-primary)', marginRight: '0.5rem' }}>Current Phase:</strong>
+        {getExplanation()}
       </div>
 
       {/* Control Actions Bar */}
@@ -185,71 +230,114 @@ function SimulationControl() {
         gap: '1rem'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          
+          {/* Action 1: SETUP -> Start Initial Allocation */}
           {config.status === 'SETUP' && (
             <button 
               type="button"
               disabled={loading}
-              onClick={() => handleAction('start-allocation', 'Initial allocation phase started.')}
+              onClick={() => handleAction('start-initial-allocation', 'Initial allocation phase opened for Round 0.')}
               className="btn btn-warning btn-lg"
             >
-              ▶ Start Allocation Phase (Round 0)
+              ▶ Start Initial Allocation
             </button>
           )}
 
-          {config.status === 'ALLOCATION' && (
+          {/* Action 2: INITIAL_ALLOCATION_OPEN -> Initialize Portfolios */}
+          {(config.status === 'INITIAL_ALLOCATION_OPEN' || config.status === 'ALLOCATION') && (
             <button 
               type="button"
               disabled={loading}
-              onClick={() => handleAction('start-round-1', 'Round 1 has started.')}
+              onClick={() => handleAction('initialize-portfolios', 'Portfolios initialized. Round 1 begins in ROUND_PREPARATION.')}
               className="btn btn-success btn-lg"
             >
-              🚀 Launch Round 1 Trading
+              🚀 Initialize Portfolios & Begin Round 1
             </button>
           )}
 
-          {config.status === 'RUNNING' && config.currentRound < config.totalRounds && (
+          {/* Action 3: ROUND_PREPARATION -> Publish News & Open Reallocation */}
+          {(config.status === 'ROUND_PREPARATION' || config.status === 'NEWS_PUBLISHED') && config.currentRound >= 1 && config.currentRound <= config.totalRounds && (
             <button 
               type="button"
               disabled={loading}
-              onClick={() => handleAction('advance-round', `Advanced to Round ${config.currentRound + 1}`)}
-              className="btn btn-success btn-lg"
-            >
-              ⏩ Advance to Round {config.currentRound + 1}
-            </button>
-          )}
-
-          {config.status === 'RUNNING' && config.currentRound === config.totalRounds && (
-            <button 
-              type="button"
-              disabled={loading}
-              onClick={() => handleAction('finish', 'Simulation has been marked as FINISHED.')}
+              onClick={() => handleAction('publish-news-and-open-reallocation', `Round ${config.currentRound} news published and reallocation opened.`)}
               className="btn btn-primary btn-lg"
             >
-              🏁 Conclude & Finish Simulation
+              📢 Publish Round {config.currentRound} News & Open Reallocation
             </button>
           )}
 
+          {/* Action 4: REALLOCATION_OPEN -> Close Reallocation */}
+          {config.status === 'REALLOCATION_OPEN' && (
+            <button 
+              type="button"
+              disabled={loading}
+              onClick={() => handleAction('close-reallocation', `Round ${config.currentRound} reallocation closed.`)}
+              className="btn btn-warning btn-lg"
+            >
+              🔒 Close Reallocation
+            </button>
+          )}
+
+          {/* Action 5: REALLOCATION_CLOSED -> Evaluate & Publish Results */}
+          {config.status === 'REALLOCATION_CLOSED' && (
+            <button 
+              type="button"
+              disabled={loading}
+              onClick={() => handleAction('evaluate-round', `Round ${config.currentRound} evaluated and results published.`)}
+              className="btn btn-success btn-lg"
+            >
+              📊 Evaluate & Publish Results
+            </button>
+          )}
+
+          {/* Action 6: RESULTS_PUBLISHED (Rounds 1–19) -> Start Next Round */}
+          {config.status === 'RESULTS_PUBLISHED' && config.currentRound < config.totalRounds && (
+            <button 
+              type="button"
+              disabled={loading}
+              onClick={() => handleAction('start-next-round', `Round ${config.currentRound + 1} preparation started.`)}
+              className="btn btn-primary btn-lg"
+            >
+              ⏩ Prepare Round {config.currentRound + 1}
+            </button>
+          )}
+
+          {/* Action 7: RESULTS_PUBLISHED (Round 20) -> Finish Simulation */}
+          {config.status === 'RESULTS_PUBLISHED' && config.currentRound === config.totalRounds && (
+            <button 
+              type="button"
+              disabled={loading}
+              onClick={() => handleAction('finish', 'Simulation officially finished! Leaderboard unlocked.')}
+              className="btn btn-finish btn-lg"
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#ffffff',
+                fontWeight: 700
+              }}
+            >
+              🏁 Conclude Contest & Release Leaderboard
+            </button>
+          )}
+
+          {/* Final State Banner */}
           {config.status === 'FINISHED' && (
-            <div className="badge badge-finished" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
-              <span className="badge-dot" />
-              Simulation Concluded & Locked
-            </div>
+            <span style={{ color: 'var(--success-emerald)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>🏆</span> Simulation Completed. Final Standings Live on Leaderboard.
+            </span>
           )}
         </div>
 
-        {/* Danger Zone: Safeguarded Reset Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button 
-            type="button"
-            disabled={loading}
-            onClick={handleReset}
-            className="btn btn-danger btn-sm"
-            style={{ opacity: loading ? 0.5 : 1 }}
-            title="Reset simulation lifecycle back to Round 0 SETUP"
-          >
-            ⚠️ Reset Lifecycle
-          </button>
-        </div>
+        {/* Safe Dev / Admin Reset */}
+        <button 
+          type="button"
+          disabled={loading}
+          onClick={handleReset}
+          className="btn btn-danger btn-sm"
+          title="Reset simulation status to Round 0 SETUP"
+        >
+          🔄 Reset to SETUP
+        </button>
       </div>
     </div>
   );

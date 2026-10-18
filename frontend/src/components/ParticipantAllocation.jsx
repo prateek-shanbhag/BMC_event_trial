@@ -1,6 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
+const CANONICAL_ASSET_NAMES = {
+  assetClass1: "Asset Class 1",
+  assetClass2: "Asset Class 2",
+  assetClass3: "Asset Class 3",
+  governmentSecurities: "Government Securities",
+  bankFixedDeposits: "Bank Fixed Deposits",
+  realEstate: "Real Estate",
+  gold: "Gold"
+};
+
+const LEGACY_KEY_MAP = {
+  '1': 'assetClass1',
+  '2': 'assetClass2',
+  '3': 'assetClass3',
+  '4': 'governmentSecurities',
+  '5': 'bankFixedDeposits',
+  '6': 'realEstate',
+  '7': 'gold'
+};
+
+const FD_MODIFIABLE_ROUNDS = [0, 6, 11];
+
 function ParticipantAllocation({ simulationState }) {
   const { currentUser } = useAuth();
   const [allocation, setAllocation] = useState(null);
@@ -9,22 +31,18 @@ function ParticipantAllocation({ simulationState }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [inputs, setInputs] = useState({
-    "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0
+    assetClass1: 0,
+    assetClass2: 0,
+    assetClass3: 0,
+    governmentSecurities: 0,
+    bankFixedDeposits: 0,
+    realEstate: 0,
+    gold: 0
   });
-
-  const assetNames = {
-    "1": "Asset Class 1",
-    "2": "Asset Class 2",
-    "3": "Asset Class 3",
-    "4": "Government Securities",
-    "5": "Bank Fixed Deposits",
-    "6": "Real Estate",
-    "7": "Gold"
-  };
 
   useEffect(() => {
     fetchAllocation();
-  }, []);
+  }, [simulationState?.currentRound, simulationState?.status]);
 
   const fetchAllocation = async () => {
     try {
@@ -54,7 +72,18 @@ function ParticipantAllocation({ simulationState }) {
 
       setAllocation(data);
       if (data.allocations) {
-        setInputs(data.allocations);
+        const loaded = {};
+        Object.keys(CANONICAL_ASSET_NAMES).forEach(k => {
+          loaded[k] = data.allocations[k] ?? 0;
+        });
+
+        // Map legacy keys if needed
+        for (const [legacyKey, canonicalKey] of Object.entries(LEGACY_KEY_MAP)) {
+          if (data.allocations[canonicalKey] === undefined && data.allocations[legacyKey] !== undefined) {
+            loaded[canonicalKey] = data.allocations[legacyKey];
+          }
+        }
+        setInputs(loaded);
       }
     } catch (err) {
       setError(err.message);
@@ -88,7 +117,7 @@ function ParticipantAllocation({ simulationState }) {
         throw new Error(data.error || 'Failed to save draft');
       }
 
-      setSuccess('Draft saved successfully.');
+      setSuccess('Allocation draft saved successfully.');
       fetchAllocation();
     } catch (err) {
       setError(err.message);
@@ -96,7 +125,8 @@ function ParticipantAllocation({ simulationState }) {
   };
 
   const handleSubmit = async () => {
-    if (!window.confirm('Are you sure you want to submit? This action cannot be undone.')) {
+    const roundNumber = allocation?.round ?? simulationState?.currentRound ?? 0;
+    if (!window.confirm(`Are you sure you want to submit your Round ${roundNumber} allocation? Once submitted, your allocation is finalized and locked for this round.`)) {
       return;
     }
     
@@ -118,7 +148,7 @@ function ParticipantAllocation({ simulationState }) {
         throw new Error(data.error || 'Failed to submit allocation');
       }
 
-      setSuccess('Initial allocation submitted successfully.');
+      setSuccess(`Round ${roundNumber} allocation submitted and locked successfully.`);
       fetchAllocation();
     } catch (err) {
       setError(err.message);
@@ -130,7 +160,7 @@ function ParticipantAllocation({ simulationState }) {
       <div className="bmc-card">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <span className="badge-dot" style={{ background: 'var(--accent-electric)', animation: 'pulse-dot 1.2s infinite' }} />
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Loading initial allocation workbench...</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Loading allocation workbench...</span>
         </div>
       </div>
     );
@@ -140,7 +170,7 @@ function ParticipantAllocation({ simulationState }) {
     return (
       <div className="bmc-card">
         <div className="bmc-card-header">
-          <h3 className="bmc-card-title">Initial Portfolio Allocation</h3>
+          <h3 className="bmc-card-title">Portfolio Allocation</h3>
         </div>
         <div className="alert alert-warning">
           <span>You are not assigned to a team yet. Please wait for an administrator to assign your squad.</span>
@@ -149,16 +179,20 @@ function ParticipantAllocation({ simulationState }) {
     );
   }
 
-  // Only show this component during Round 0 ALLOCATION phase
-  if (simulationState && (simulationState.currentRound !== 0 || simulationState.status !== 'ALLOCATION')) {
-    return null;
-  }
-
+  const currentRound = allocation?.round ?? simulationState?.currentRound ?? 0;
+  const isRound0 = currentRound === 0;
+  const availableCapital = allocation?.availableCapital || (isRound0 ? 1000000 : 0);
   const isSubmitted = allocation?.status === 'SUBMITTED';
+  const isReallocationOpen = allocation?.isReallocationOpen ?? false;
+  const canEdit = isReallocationOpen && !isSubmitted;
+  const isFdModifiable = FD_MODIFIABLE_ROUNDS.includes(currentRound);
+
   const totalAllocated = Object.values(inputs).reduce((sum, val) => sum + (val || 0), 0);
-  const unallocated = 1000000 - totalAllocated;
-  const percentAllocated = Math.min(100, Math.max(0, (totalAllocated / 1000000) * 100));
-  const isOverBudget = unallocated < 0;
+  const unallocatedCash = availableCapital - totalAllocated;
+  const percentAllocated = availableCapital > 0 
+    ? Math.min(100, Math.max(0, (totalAllocated / availableCapital) * 100))
+    : 0;
+  const isOverBudget = unallocatedCash < 0;
 
   return (
     <div className="bmc-card">
@@ -172,21 +206,28 @@ function ParticipantAllocation({ simulationState }) {
               width: '26px',
               height: '26px',
               borderRadius: '6px',
-              background: 'rgba(245, 158, 11, 0.15)',
-              color: 'var(--warning-light)',
+              background: isRound0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+              color: isRound0 ? 'var(--warning-light)' : 'var(--accent-electric)',
               fontSize: '0.85rem'
             }}>
               ⚖️
             </span>
-            Initial Portfolio Allocation (Round 0)
+            {isRound0 ? 'Initial Portfolio Allocation (Round 0)' : `Portfolio Reallocation Desk (Round ${currentRound})`}
           </h3>
           <p className="bmc-card-subtitle">
-            Deploy starting capital of ₹10,00,000 for {teamName || 'your squad'} across the 7 asset classes before the round window closes.
+            {isRound0 
+              ? `Deploy starting capital of ₹${availableCapital.toLocaleString('en-IN')} for ${teamName || 'your squad'} across the 7 asset classes.`
+              : `Rebalance your current portfolio value of ₹${availableCapital.toLocaleString('en-IN')} for ${teamName || 'your squad'} across assets and cash.`
+            }
           </p>
         </div>
-        <span className={`badge ${isSubmitted ? 'badge-running' : 'badge-allocation'}`}>
+        <span className={`badge ${isSubmitted ? 'badge-running' : isReallocationOpen ? 'badge-allocation' : 'badge-setup'}`}>
           <span className="badge-dot" />
-          {isSubmitted ? 'Status: SUBMITTED (Locked)' : 'Phase: ALLOCATION OPEN'}
+          {isSubmitted 
+            ? 'Status: SUBMITTED (Locked)' 
+            : isReallocationOpen 
+            ? 'Phase: REALLOCATION OPEN' 
+            : 'Status: REALLOCATION LOCKED'}
         </span>
       </div>
 
@@ -201,10 +242,19 @@ function ParticipantAllocation({ simulationState }) {
         </div>
       )}
 
+      {/* Status Messages */}
       {isSubmitted && (
         <div className="alert alert-info">
           <span>
-            <strong>Allocation Locked:</strong> Your initial allocation of ₹{totalAllocated.toLocaleString('en-IN')} has been finalized and submitted to the trading engine.
+            <strong>Allocation Locked:</strong> Your Round {currentRound} allocation of ₹{totalAllocated.toLocaleString('en-IN')} (with ₹{unallocatedCash.toLocaleString('en-IN')} in cash) has been finalized and submitted.
+          </span>
+        </div>
+      )}
+
+      {!isReallocationOpen && !isSubmitted && (
+        <div className="alert alert-warning">
+          <span>
+            <strong>Reallocation Window Closed:</strong> Portfolio adjustments are locked for Round {currentRound}. Inputs are displayed in read-only mode until reallocation is opened by the event administrator.
           </span>
         </div>
       )}
@@ -221,27 +271,29 @@ function ParticipantAllocation({ simulationState }) {
         marginBottom: '1.5rem'
       }}>
         <div>
-          <span className="bmc-stat-label">Starting Capital</span>
-          <div className="bmc-stat-value" style={{ fontSize: '1.35rem' }}>₹10,00,000</div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Initial allocation pool</span>
+          <span className="bmc-stat-label">Available Portfolio Capital</span>
+          <div className="bmc-stat-value" style={{ fontSize: '1.35rem' }}>₹{availableCapital.toLocaleString('en-IN')}</div>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            {isRound0 ? 'Genesis starting allotment' : `Total value for Round ${currentRound}`}
+          </span>
         </div>
         <div>
-          <span className="bmc-stat-label">Allocated Capital</span>
+          <span className="bmc-stat-label">Allocated to Assets</span>
           <div className="bmc-stat-value" style={{ fontSize: '1.35rem', color: isOverBudget ? 'var(--loss-light)' : 'var(--accent-electric)' }}>
             ₹{totalAllocated.toLocaleString('en-IN')}
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{percentAllocated.toFixed(1)}% of total capital</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{percentAllocated.toFixed(1)}% of available capital</span>
         </div>
         <div>
-          <span className="bmc-stat-label">Remaining Unallocated (Cash)</span>
+          <span className="bmc-stat-label">Remaining Liquid Cash</span>
           <div className="bmc-stat-value" style={{
             fontSize: '1.35rem',
             color: isOverBudget ? 'var(--loss-light)' : 'var(--gain-light)'
           }}>
-            ₹{unallocated.toLocaleString('en-IN')}
+            ₹{unallocatedCash.toLocaleString('en-IN')}
           </div>
           <span style={{ fontSize: '0.75rem', color: isOverBudget ? 'var(--loss-light)' : 'var(--text-muted)' }}>
-            {isOverBudget ? 'Exceeds ₹10,00,000 limit!' : 'Kept as liquid reserve'}
+            {isOverBudget ? `Exceeds ₹${availableCapital.toLocaleString('en-IN')} limit!` : 'Uninvested cash reserve'}
           </span>
         </div>
       </div>
@@ -274,13 +326,29 @@ function ParticipantAllocation({ simulationState }) {
             </tr>
           </thead>
           <tbody>
-            {Object.entries(assetNames).map(([key, name]) => {
+            {Object.entries(CANONICAL_ASSET_NAMES).map(([key, name]) => {
               const val = inputs[key] || 0;
-              const weight = totalAllocated > 0 ? ((val / 1000000) * 100).toFixed(1) : '0.0';
+              const weight = availableCapital > 0 ? ((val / availableCapital) * 100).toFixed(1) : '0.0';
+              const isFdField = key === 'bankFixedDeposits';
+              const isLockedFd = isFdField && !isFdModifiable;
+              const inputDisabled = !canEdit || isLockedFd;
+
               return (
                 <tr key={key}>
-                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {name}
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{name}</span>
+                      {isLockedFd && (
+                        <span style={{ fontSize: '0.725rem', color: 'var(--warning-light)', marginTop: '0.2rem' }}>
+                          🔒 Locked (Modifiable only in Rounds 0, 6, 11)
+                        </span>
+                      )}
+                      {isFdField && isFdModifiable && (
+                        <span style={{ fontSize: '0.725rem', color: 'var(--gain-light)', marginTop: '0.2rem' }}>
+                          🔓 Modifiable in Round {currentRound}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', maxWidth: '220px' }}>
@@ -291,9 +359,14 @@ function ParticipantAllocation({ simulationState }) {
                         step="1"
                         value={inputs[key] === 0 ? '' : inputs[key]} 
                         onChange={(e) => handleInputChange(key, e.target.value)}
-                        disabled={isSubmitted}
+                        disabled={inputDisabled}
                         className="form-input form-input-mono"
-                        style={{ padding: '0.45rem 0.65rem' }}
+                        style={{ 
+                          padding: '0.45rem 0.65rem',
+                          background: isLockedFd ? 'rgba(30, 41, 59, 0.4)' : undefined,
+                          borderColor: isLockedFd ? 'var(--border-subtle)' : undefined,
+                          cursor: isLockedFd ? 'not-allowed' : undefined
+                        }}
                         placeholder="0"
                         aria-label={`Allocation amount for ${name}`}
                       />
@@ -310,7 +383,7 @@ function ParticipantAllocation({ simulationState }) {
       </div>
 
       {/* Action Buttons */}
-      {!isSubmitted && (
+      {canEdit && (
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <button 
             type="button"

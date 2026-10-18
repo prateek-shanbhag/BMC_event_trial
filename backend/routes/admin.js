@@ -213,19 +213,53 @@ router.get('/participants', async (req, res) => {
   }
 });
 
+const CANONICAL_ASSET_METADATA = [
+  { id: 'assetClass1', name: 'Asset Class 1', description: 'Equities: Manufacturing (50%), Banking (20%), IT (30%)' },
+  { id: 'assetClass2', name: 'Asset Class 2', description: 'Equities: FMCG (50%), Pharma (20%), Energy (30%)' },
+  { id: 'assetClass3', name: 'Asset Class 3', description: 'Equities: FMCG (25%), Pharma (25%), Energy (25%), IT (25%)' },
+  { id: 'governmentSecurities', name: 'Government Securities', description: 'Sovereign-backed fixed income instruments' },
+  { id: 'bankFixedDeposits', name: 'Bank Fixed Deposits', description: 'Guaranteed term deposits (Modifiable only in Rounds 0, 6, 11)' },
+  { id: 'realEstate', name: 'Real Estate', description: 'Commercial & residential real estate asset pool' },
+  { id: 'gold', name: 'Gold', description: 'Physical gold bullion & sovereign gold reserves' }
+];
+
 // Fetch all asset classes
 router.get('/asset-classes', async (req, res) => {
   try {
     const assetClassesSnapshot = await db.collection('assetClasses').get();
     
-    const assetClasses = [];
-    assetClassesSnapshot.forEach(doc => {
-      assetClasses.push({ id: doc.id, ...doc.data() });
+    if (assetClassesSnapshot.empty) {
+      return res.json({ assetClasses: CANONICAL_ASSET_METADATA });
+    }
+
+    const map = {};
+    CANONICAL_ASSET_METADATA.forEach(ac => {
+      map[ac.id] = { ...ac };
     });
 
-    // Sort by integer ID
-    assetClasses.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+    const legacyMap = {
+      '1': 'assetClass1',
+      '2': 'assetClass2',
+      '3': 'assetClass3',
+      '4': 'governmentSecurities',
+      '5': 'bankFixedDeposits',
+      '6': 'realEstate',
+      '7': 'gold'
+    };
 
+    assetClassesSnapshot.forEach(doc => {
+      const data = doc.data();
+      const canonicalId = map[doc.id] ? doc.id : legacyMap[doc.id];
+      if (canonicalId && map[canonicalId]) {
+        map[canonicalId] = {
+          ...map[canonicalId],
+          ...data,
+          id: canonicalId
+        };
+      }
+    });
+
+    const assetClasses = CANONICAL_ASSET_METADATA.map(item => map[item.id]);
     return res.json({ assetClasses });
   } catch (error) {
     console.error('Error fetching asset classes:', error);

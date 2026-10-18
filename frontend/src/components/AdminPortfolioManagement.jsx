@@ -145,14 +145,21 @@ function AdminPortfolioManagement() {
 
   const getAssetName = (key) => {
     switch (key) {
+      case 'assetClass1':
       case '1': return 'Asset Class 1';
+      case 'assetClass2':
       case '2': return 'Asset Class 2';
+      case 'assetClass3':
       case '3': return 'Asset Class 3';
+      case 'governmentSecurities':
       case '4': return 'Government Securities';
+      case 'bankFixedDeposits':
       case '5': return 'Bank Fixed Deposits';
+      case 'realEstate':
       case '6': return 'Real Estate';
+      case 'gold':
       case '7': return 'Gold';
-      default: return `Asset Class ${key}`;
+      default: return key;
     }
   };
 

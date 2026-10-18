@@ -1,5 +1,5 @@
 const path = require('path');
-const fetch = require('node-fetch');
+const fetch = typeof globalThis.fetch === 'function' ? globalThis.fetch : require('node-fetch');
 
 // Load .env from backend/.env if available
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });

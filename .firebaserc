@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "staging": "bmc-investment-staging"
+  },
+  "targets": {},
+  "etags": {}
+}
